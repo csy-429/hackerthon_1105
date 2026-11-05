@@ -6,6 +6,7 @@ from app.models.domain import (
     Assignment,
     AssignmentStatus,
     TaskStatus,
+    WorkerOrigin,
 )
 from app.repositories.memory import InMemoryRepository
 from app.schemas.responses import AssignmentView, TaskView
@@ -55,10 +56,19 @@ def request_confirmation(
 
         all_assignments = list(repo.assignments.values())
         new_items: list[Assignment] = []
+        selected: list[Assignment] = []
         for worker_id in worker_ids:
             worker = repo.get_worker(worker_id)
             candidate = evaluate_candidate(task, worker, repo.tasks, all_assignments)
-            if candidate.assignment_status is not None:
+            applied = next(
+                (
+                    a
+                    for a in existing
+                    if a.worker_id == worker.id and a.status == AssignmentStatus.APPLIED
+                ),
+                None,
+            )
+            if candidate.assignment_status not in (None, AssignmentStatus.APPLIED):
                 raise ConflictError(
                     "already_requested", f"{worker.display_name}에게는 이미 배치를 요청했습니다"
                 )
@@ -67,6 +77,14 @@ def request_confirmation(
                     "worker_not_eligible",
                     f"{worker.display_name}은(는) 배치할 수 없습니다",
                     {"exclusions": candidate.exclusions},
+                )
+            if applied is not None:
+                # 직접 지원은 일손의 사전 동의로 보고 바로 수락 상태로 둔다.
+                selected.append(applied)
+                continue
+            if worker.origin == WorkerOrigin.PUBLIC:
+                raise ConflictError(
+                    "not_applicant", f"{worker.display_name}은(는) 이 작업에 지원하지 않았습니다"
                 )
             new_items.append(
                 Assignment(
@@ -79,6 +97,9 @@ def request_confirmation(
             )
         for item in new_items:
             repo.assignments[item.id] = item
+        for item in selected:
+            item.status = AssignmentStatus.ACCEPTED
+            item.match_reasons = [*item.match_reasons, "지원자: 일손이 직접 지원함"]
         task.status = TaskStatus.PROPOSED
         return build_task_view(repo, task)
 
@@ -92,15 +113,23 @@ def _respond(
     with repo.lock:
         assignment = repo.get_assignment(assignment_id)
         task = repo.get_task(assignment.task_id)
-        if task.status != TaskStatus.PROPOSED:
-            raise ConflictError("task_not_proposed", "배치 요청 중인 작업에서만 응답할 수 있습니다")
         if assignment.status not in allowed_from:
             raise ConflictError(
                 "invalid_transition", f"현재 상태({assignment.status})에서는 변경할 수 없습니다"
             )
+        was_applied = assignment.status == AssignmentStatus.APPLIED
+        if was_applied:
+            if task.status not in (TaskStatus.DRAFT, TaskStatus.PROPOSED):
+                raise ConflictError("task_closed", "마감된 작업의 지원은 변경할 수 없습니다")
+        elif task.status != TaskStatus.PROPOSED:
+            raise ConflictError("task_not_proposed", "배치 요청 중인 작업에서만 응답할 수 있습니다")
         assignment.status = target
-        if target == AssignmentStatus.DECLINED and not any(
-            a.status in ACTIVE_ASSIGNMENT_STATUSES for a in repo.assignments_for_task(task.id)
+        if (
+            target == AssignmentStatus.DECLINED
+            and not was_applied
+            and not any(
+                a.status in ACTIVE_ASSIGNMENT_STATUSES for a in repo.assignments_for_task(task.id)
+            )
         ):
             task.status = TaskStatus.DRAFT
         return _view(repo, assignment)
@@ -114,9 +143,38 @@ def decline_assignment(repo: InMemoryRepository, assignment_id: str) -> Assignme
     return _respond(
         repo,
         assignment_id,
-        {AssignmentStatus.PROPOSED, AssignmentStatus.ACCEPTED},
+        {AssignmentStatus.APPLIED, AssignmentStatus.PROPOSED, AssignmentStatus.ACCEPTED},
         AssignmentStatus.DECLINED,
     )
+
+
+def apply_to_task(repo: InMemoryRepository, task_id: str, worker_id: str) -> AssignmentView:
+    with repo.lock:
+        task = repo.get_task(task_id)
+        worker = repo.get_worker(worker_id)
+        if not task.open_recruitment:
+            raise ConflictError("not_open", "공개 모집 중인 작업이 아닙니다")
+        if task.status not in (TaskStatus.DRAFT, TaskStatus.PROPOSED):
+            raise ConflictError("task_closed", "마감되었거나 취소된 작업입니다")
+        candidate = evaluate_candidate(task, worker, repo.tasks, list(repo.assignments.values()))
+        if candidate.assignment_status is not None:
+            raise ConflictError("already_applied", "이미 지원했거나 배치된 작업입니다")
+        if not candidate.eligible:
+            raise ConflictError(
+                "worker_not_eligible",
+                "지원 조건을 충족하지 않습니다",
+                {"exclusions": candidate.exclusions},
+            )
+        assignment = Assignment(
+            id=repo.new_id("asg"),
+            task_id=task.id,
+            worker_id=worker.id,
+            status=AssignmentStatus.APPLIED,
+            match_reasons=candidate.reasons,
+            created_at=datetime.now(),
+        )
+        repo.assignments[assignment.id] = assignment
+        return _view(repo, assignment)
 
 
 def confirm_task(repo: InMemoryRepository, task_id: str, farmer_approved: bool) -> TaskView:
@@ -159,5 +217,8 @@ def confirm_task(repo: InMemoryRepository, task_id: str, farmer_approved: bool) 
 
         for assignment in active:
             assignment.status = AssignmentStatus.CONFIRMED
+        for assignment in repo.assignments_for_task(task.id):
+            if assignment.status == AssignmentStatus.APPLIED:
+                assignment.status = AssignmentStatus.DECLINED
         task.status = TaskStatus.CONFIRMED
         return build_task_view(repo, task)

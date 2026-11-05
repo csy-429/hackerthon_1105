@@ -1,6 +1,7 @@
 export type TaskStatus = "draft" | "proposed" | "confirmed" | "completed" | "cancelled";
-export type AssignmentStatus = "proposed" | "accepted" | "declined" | "confirmed";
+export type AssignmentStatus = "applied" | "proposed" | "accepted" | "declined" | "confirmed";
 export type WorkerStatus = "active" | "inactive";
+export type WorkerOrigin = "roster" | "public";
 
 export interface TimeWindow {
   start: string;
@@ -13,6 +14,9 @@ export interface Worker {
   skills: string[];
   availability: TimeWindow[];
   status: WorkerStatus;
+  origin: WorkerOrigin;
+  experience: string;
+  intro: string;
 }
 
 export interface AssignmentView {
@@ -34,6 +38,7 @@ export interface Task {
   required_workers: number;
   required_skills: string[];
   status: TaskStatus;
+  open_recruitment: boolean;
   assignments: AssignmentView[];
   active_count: number;
   accepted_count: number;
@@ -62,6 +67,15 @@ export interface Candidate {
   exclusions: string[];
   conflicts: ConflictInfo[];
   assignment_status: AssignmentStatus | null;
+  origin: WorkerOrigin;
+  experience: string;
+  intro: string;
+}
+
+export interface Opportunity {
+  task: Omit<Task, "assignments" | "active_count" | "accepted_count" | "confirmed_count">;
+  evaluation: Candidate;
+  free_slots: number;
 }
 
 export interface Suggestions {
@@ -94,4 +108,5 @@ export interface TaskInput {
   end_at: string;
   required_workers: number;
   required_skills: string[];
+  open_recruitment: boolean;
 }

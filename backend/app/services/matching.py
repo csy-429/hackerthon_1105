@@ -9,6 +9,7 @@ from app.models.domain import (
     TaskStatus,
     TimeWindow,
     Worker,
+    WorkerOrigin,
     WorkerStatus,
 )
 from app.schemas.responses import Candidate, ConflictInfo, SuggestionResult
@@ -112,6 +113,9 @@ def evaluate_candidate(
         exclusions=exclusions,
         conflicts=conflicts,
         assignment_status=own_status,
+        origin=worker.origin,
+        experience=worker.experience,
+        intro=worker.intro,
     )
 
 
@@ -121,13 +125,20 @@ def suggest_candidates(
     tasks: dict[str, Task],
     assignments: list[Assignment],
 ) -> SuggestionResult:
-    candidates = [evaluate_candidate(task, worker, tasks, assignments) for worker in workers]
+    # 공개 일손은 이 작업에 지원(또는 배치)한 경우에만 후보 풀에 들어온다.
+    in_task = {a.worker_id for a in assignments if a.task_id == task.id}
+    pool = [w for w in workers if w.origin == WorkerOrigin.ROSTER or w.id in in_task]
+    candidates = [evaluate_candidate(task, worker, tasks, assignments) for worker in pool]
     candidates.sort(key=lambda c: (not c.eligible, -c.score, c.display_name))
 
     active = sum(
         1 for a in assignments if a.task_id == task.id and a.status in ACTIVE_ASSIGNMENT_STATUSES
     )
-    new_eligible = sum(1 for c in candidates if c.eligible and c.assignment_status is None)
+    new_eligible = sum(
+        1
+        for c in candidates
+        if c.eligible and c.assignment_status in (None, AssignmentStatus.APPLIED)
+    )
     shortage = max(0, task.required_workers - active - new_eligible)
     reason = None
     if shortage:

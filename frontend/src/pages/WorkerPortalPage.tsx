@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt, parseSkills, withSeconds } from "../lib/format";
-import type { AssignmentView, Demo, TimeWindow } from "../types";
+import type { AssignmentView, Demo, Opportunity, TimeWindow } from "../types";
 
 interface Props {
   demo: Demo;
@@ -21,7 +21,63 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [opps, setOpps] = useState<Opportunity[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newExp, setNewExp] = useState("");
+  const [newIntro, setNewIntro] = useState("");
 
+  const loadOpps = useCallback(async () => {
+    if (!workerId) return setOpps([]);
+    try {
+      setOpps(await api.opportunities(workerId));
+    } catch (e) {
+      setError(describeError(e));
+    }
+  }, [workerId]);
+
+  useEffect(() => {
+    void loadOpps();
+  }, [loadOpps, demo.tasks, demo.workers]);
+
+  const createProfile = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const w = await api.createPublicWorker({
+        display_name: newName,
+        skills: [],
+        availability: [],
+        experience: newExp,
+        intro: newIntro,
+      });
+      await onChanged();
+      setWorkerId(w.id);
+      setCreating(false);
+      setNewName("");
+      setNewExp("");
+      setNewIntro("");
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyTo = async (taskId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.apply(taskId, workerId);
+      await onChanged();
+      await loadAssignments();
+      await loadOpps();
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const loadAssignments = useCallback(async () => {
     if (!workerId) return;
     try {
@@ -85,17 +141,67 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
 
   const taskOf = (id: string) => demo.tasks.find((t) => t.id === id);
 
+  const profileForm = (
+    <div className="card">
+      <label>닉네임 (실명 대신 사용하세요)</label>
+      <input maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
+      <label>경력 (선택)</label>
+      <input maxLength={200} value={newExp} onChange={(e) => setNewExp(e.target.value)} />
+      <label>자기소개 (선택)</label>
+      <textarea maxLength={500} value={newIntro} onChange={(e) => setNewIntro(e.target.value)} />
+      <div className="notice">연락처·주소·주민번호 등 개인정보는 입력하지 마세요. 전화번호·이메일 형식은 저장되지 않습니다.</div>
+      <div className="row">
+        <button className="primary" disabled={busy || !newName.trim()} onClick={() => void createProfile()}>프로필 만들기</button>
+        <button onClick={() => setCreating(false)}>닫기</button>
+      </div>
+      <p className="muted">만든 뒤 아래에서 작업 유형과 가능 시간을 등록하면 공개 모집 작업에 지원할 수 있습니다.</p>
+    </div>
+  );
+
   return (
     <>
       <h2>일손 화면</h2>
       <div className="notice">데모에서는 로그인 없이 일손을 선택해 본인 화면을 확인합니다.</div>
       <label>일손 선택</label>
-      <select value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
-        {active.map((w) => (
-          <option key={w.id} value={w.id}>{w.display_name}</option>
-        ))}
-      </select>
+      <div className="row">
+        <select className="grow" value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
+          {active.map((w) => (
+            <option key={w.id} value={w.id}>{w.display_name}{w.origin === "public" ? " (공개 프로필)" : ""}</option>
+          ))}
+        </select>
+        <button onClick={() => setCreating((v) => !v)}>＋ 새 프로필 만들기</button>
+      </div>
+      {creating && profileForm}
       {error && <div className="error">{error}</div>}
+
+      <h3>모집 중인 작업</h3>
+      {opps.length === 0 && <p className="muted">현재 공개 모집 중인 작업이 없습니다.</p>}
+      {opps.map((o) => {
+        const status = o.evaluation.assignment_status;
+        return (
+          <div className="card" key={o.task.id}>
+            <div className="row">
+              <strong className="grow">{o.task.title}</strong>
+              <span className="badge">남은 자리 {o.free_slots}명</span>
+            </div>
+            <div className="muted">
+              {fmt(o.task.start_at)} ~ {fmt(o.task.end_at)} · 조건: {o.task.required_skills.join(", ") || "없음"}
+            </div>
+            <ul>
+              {o.evaluation.reasons.map((r) => <li key={r} className="ok">✔ {r}</li>)}
+              {o.evaluation.warnings.map((r) => <li key={r} className="warn">⚠ {r}</li>)}
+              {o.evaluation.exclusions.map((r) => <li key={r} className="bad">✖ {r}</li>)}
+            </ul>
+            {status ? (
+              <span className="badge">{ASSIGNMENT_STATUS_LABEL[status]}</span>
+            ) : (
+              <button className="primary" disabled={busy || !o.evaluation.eligible} onClick={() => void applyTo(o.task.id)}>
+                지원하기
+              </button>
+            )}
+          </div>
+        );
+      })}
 
       <h3>받은 배치 요청</h3>
       {assignments.length === 0 && <p className="muted">받은 배치 요청이 없습니다.</p>}
@@ -119,6 +225,12 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
                   <button className="primary" disabled={busy} onClick={() => void respond(a.id, true)}>수락</button>
                 )}
                 <button disabled={busy} onClick={() => void respond(a.id, false)}>거절</button>
+              </div>
+            )}
+            {a.status === "applied" && t && (t.status === "draft" || t.status === "proposed") && (
+              <div className="row" style={{ marginTop: 8 }}>
+                <span className="muted grow">지원했습니다. 농장주가 선택하면 수락 상태로 바뀝니다.</span>
+                <button disabled={busy} onClick={() => void respond(a.id, false)}>지원 취소</button>
               </div>
             )}
             {a.status === "accepted" && <div className="muted">수락했습니다. 농장주가 확정하면 확정으로 바뀝니다.</div>}

@@ -2,8 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.domain import Assignment, AssignmentStatus, Farm, Task, Worker
-
+from app.models.domain import Assignment, AssignmentStatus, Farm, Task, Worker, WorkerOrigin
 
 class ConflictInfo(BaseModel):
     task_id: str
@@ -22,6 +21,15 @@ class Candidate(BaseModel):
     exclusions: list[str] = Field(default_factory=list)
     conflicts: list[ConflictInfo] = Field(default_factory=list)
     assignment_status: AssignmentStatus | None = None
+    origin: WorkerOrigin = WorkerOrigin.ROSTER
+    experience: str = ""
+    intro: str = ""
+
+
+class OpportunityView(BaseModel):
+    task: Task
+    evaluation: Candidate
+    free_slots: int
 
 
 class SuggestionResult(BaseModel):

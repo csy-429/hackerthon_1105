@@ -120,7 +120,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           {sug.candidates.map((c) => (
             <div className="card" key={c.candidate_id}>
               <div className="row">
-                {c.eligible && !c.assignment_status && (
+                {c.eligible && (!c.assignment_status || c.assignment_status === "applied") && (
                   <input
                     type="checkbox"
                     style={{ width: "auto" }}
@@ -129,7 +129,21 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
                     onChange={() => toggle(c)}
                   />
                 )}
-                <strong className="grow">{c.display_name}</strong>
+                <strong className="grow">
+                  {c.display_name}
+                  {c.origin === "public" && <span className="badge"> 공개 지원자</span>}
+                </strong>
+                {c.assignment_status === "applied" && (
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      const a = task.assignments.find((x) => x.worker_id === c.candidate_id && x.status === "applied");
+                      if (a) void run(() => api.decline(a.id));
+                    }}
+                  >
+                    지원 거절
+                  </button>
+                )}
                 {c.assignment_status ? (
                   <span className="badge">{ASSIGNMENT_STATUS_LABEL[c.assignment_status]}</span>
                 ) : c.eligible ? (
@@ -138,6 +152,13 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
                   <span className="badge cancelled">배치 불가</span>
                 )}
               </div>
+              {c.origin === "public" && (c.experience || c.intro) && (
+                <div className="muted">
+                  {c.experience && <div>경력: {c.experience}</div>}
+                  {c.intro && <div>소개: {c.intro}</div>}
+                  <div>※ 신원·평점은 확인되지 않은 지원자입니다.</div>
+                </div>
+              )}
               <ul>
                 {c.reasons.map((r) => <li key={r} className="ok">✔ {r}</li>)}
                 {c.warnings.map((r) => <li key={r} className="warn">⚠ {r}</li>)}
@@ -157,7 +178,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           >
             선택한 {picked.length}명에게 배치 요청
           </button>
-          <span className="muted"> 요청 후 일손이 수락해야 확정할 수 있습니다.</span>
+          <span className="muted"> 지원자를 선택하면 지원이 사전 동의로 처리되어 바로 수락 상태가 되고, 내 일손 명단은 일손이 수락해야 확정할 수 있습니다.</span>
         </>
       )}
 

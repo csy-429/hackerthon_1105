@@ -1,4 +1,4 @@
-import type { AgentPlan, AssignmentView, Demo, Suggestions, Task, TaskInput, Worker } from "../types";
+import type { AgentPlan, AssignmentView, Demo, Opportunity, Suggestions, Task, TaskInput, Worker } from "../types";
 
 export class ApiError extends Error {
   constructor(
@@ -56,6 +56,11 @@ export const api = {
   decline: (id: string) => request<AssignmentView>("POST", `/assignments/${id}/decline`),
   createWorker: (w: Pick<Worker, "display_name" | "skills" | "availability">) =>
     request<Worker>("POST", "/workers", w),
+  createPublicWorker: (w: Pick<Worker, "display_name" | "skills" | "availability" | "experience" | "intro">) =>
+    request<Worker>("POST", "/workers?public=true", w),
+  opportunities: (workerId: string) => request<Opportunity[]>("GET", `/workers/${workerId}/opportunities`),
+  apply: (taskId: string, workerId: string) =>
+    request<AssignmentView>("POST", `/tasks/${taskId}/apply`, { worker_id: workerId }),
   updateWorker: (id: string, w: Partial<Worker>) => request<Worker>("PATCH", `/workers/${id}`, w),
   plan: (taskId: string, text: string) =>
     request<AgentPlan>("POST", "/agent/plan", { task_id: taskId, request: text }),

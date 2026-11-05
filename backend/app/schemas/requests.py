@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -10,10 +11,24 @@ from pydantic import (
     model_validator,
 )
 
-from app.models.domain import TimeWindow, WorkerStatus, normalize_skills, require_naive
+from app.models.domain import (
+    TimeWindow,
+    WorkerStatus,
+    normalize_skills,
+    reject_contact_info,
+    require_naive,
+)
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
-PersonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+PersonName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)
+]
+Experience = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=200), AfterValidator(reject_contact_info)
+]
+Intro = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=500), AfterValidator(reject_contact_info)
+]
 
 
 class _Strict(BaseModel):
@@ -29,6 +44,7 @@ class TaskCreate(_Strict):
     end_at: datetime
     required_workers: int = Field(default=1, ge=1, le=50)
     required_skills: list[str] = Field(default_factory=list, max_length=20)
+    open_recruitment: bool = False
 
     @field_validator("start_at", "end_at")
     @classmethod
@@ -54,6 +70,7 @@ class TaskUpdate(_Strict):
     end_at: datetime | None = None
     required_workers: int | None = Field(default=None, ge=1, le=50)
     required_skills: list[str] | None = Field(default=None, max_length=20)
+    open_recruitment: bool | None = None
 
     @field_validator("start_at", "end_at")
     @classmethod
@@ -70,6 +87,8 @@ class WorkerCreate(_Strict):
     display_name: PersonName
     skills: list[str] = Field(default_factory=list, max_length=20)
     availability: list[TimeWindow] = Field(default_factory=list, max_length=50)
+    experience: Experience = ""
+    intro: Intro = ""
 
     @field_validator("skills")
     @classmethod
@@ -82,6 +101,8 @@ class WorkerUpdate(_Strict):
     skills: list[str] | None = Field(default=None, max_length=20)
     availability: list[TimeWindow] | None = Field(default=None, max_length=50)
     status: WorkerStatus | None = None
+    experience: Experience | None = None
+    intro: Intro | None = None
 
     @field_validator("skills")
     @classmethod
@@ -91,6 +112,10 @@ class WorkerUpdate(_Strict):
 
 class ConfirmationRequest(_Strict):
     worker_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class ApplyRequest(_Strict):
+    worker_id: str
 
 
 class ConfirmRequest(_Strict):

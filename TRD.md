@@ -65,7 +65,8 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `skills` — 작업 유형 목록
 - `availability` — 날짜 및 시간 구간
 - `status`
-
+- `origin` — roster(농장주 명단) 또는 public(공개 지원)
+- `experience`, `intro` — 선택 입력(200자·500자), 연락처 형식 거부
 ### Task
 
 - `id`
@@ -77,13 +78,14 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `required_workers`
 - `required_skills`
 - `status` — draft, proposed, confirmed, completed, cancelled
+- `open_recruitment` — 공개 모집 여부(기본 false)
 
 ### Assignment
 
 - `id`
 - `task_id`
 - `worker_id`
-- `status` — proposed, accepted, declined, confirmed
+- `status` — proposed, accepted, declined, confirmed 외에 `applied`(공개 모집 지원, 인원 미차지)
 - `match_reasons`
 - `created_at`
 
@@ -100,6 +102,8 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - 같은 작업에서 이미 거절한 일손이 아니다.
 - 작업 상태가 취소되지 않았다.
 
+후보 풀: `origin=roster` 일손은 항상 후보가 되고, `origin=public` 일손은 해당 작업에 지원(또는 배치)한 경우에만 후보가 된다. 지원(`applied`)은 인원을 차지하지 않으며, 농장주가 선택하면 서버가 같은 규칙으로 다시 검증한 뒤 수락(`accepted`) 상태로 바꾼다. 확정 시 남은 `applied`는 `declined`(마감)로 바뀐다. 작업의 일정·조건이 바뀌면 활성 배치만 폐기하고 지원은 유지한다(선택 시 재검증).
+
 다른 작업에 제안(proposed)·수락(accepted) 상태로 겹치는 경우는 제외하지 않고 경고(`warnings`)로 표시한다.
 
 후보 점수는 단순하고 설명 가능하게 유지한다. 적격 후보는 100점에서 경고 1건당 10점을 감점하고, 부적격 후보는 0점이다. 점수는 추천 순서일 뿐 고용 적합성이나 작업자의 우열을 의미하지 않는다.
@@ -112,6 +116,7 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `exclusions`: 부적격 사유(`eligible=false`일 때 사용자에게 표시)
 - `conflicts`: 충돌한 일정(`task_id`, `title`, `start_at`, `end_at`)
 - `assignment_status`: 이 작업에 이미 배치 요청이 있으면 그 상태
+- `origin`, `experience`, `intro`: 일손 출처와 공개 프로필 정보
 
 전체 응답에는 `shortage`(부족 인원)와 `shortage_reason`이 포함된다. AI는 이 결과를 설명할 수 있지만 `eligible`, `exclusions` 등 판정 값을 변경할 수 없다.
 
@@ -122,8 +127,12 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `POST /api/tasks` — 작업 초안 생성
 - `PATCH /api/tasks/{id}` — 작업 정보 수정
 - `POST /api/tasks/{id}/suggestions` — 후보 및 배치안 계산
+- `POST /api/tasks/{id}/apply` — 일손의 공개 모집 지원(`open_recruitment` 작업, 초안·제안 상태만). 조건 불충족이면 409와 `exclusions`
+- `GET /api/workers/{id}/opportunities` — 공개 모집 중인 작업과 해당 일손의 적격 평가
+- `POST /api/workers?public=true` — 공개 프로필(`origin=public`) 생성. 기본은 명단 일손(`roster`)
+- `POST /api/tasks/{id}/request-confirmation` — 명단 일손에게 배치 요청, 지원자는 선택 시 바로 수락 상태
 - `POST /api/assignments/{id}/accept` — 일손 수락
-- `POST /api/assignments/{id}/decline` — 일손 거절
+- `POST /api/assignments/{id}/decline` — 일손 거절. 지원(`applied`)은 지원 취소·지원 거절로 사용
 - `POST /api/tasks/{id}/confirm` — 조건 충족 및 사용자 확인 후 확정
 - `POST /api/agent/plan` — 에이전트가 작업 요청을 구조화하고 배치안을 설명
 - `GET /health` — 상태 확인
@@ -143,6 +152,7 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 ## 7. 보안 및 신뢰
 
 - 데모 환경에는 실제 개인 정보를 입력하지 않도록 안내한다.
+- 공개 지원자 프로필의 `experience`·`intro`는 전화번호·이메일 형식을 서버에서 거부(422)하고 길이를 제한한다. 로그인이 없으므로 스팸 지원은 막지 못하며, 이는 알려진 한계다.
 - 브라우저에서 Copilot SDK 자격 증명을 사용하지 않는다.
 - AI가 만든 일정안은 항상 초안으로 표시한다.
 - 확정 API는 일정 충돌과 당사자 동의 상태를 서버에서 다시 확인한다.

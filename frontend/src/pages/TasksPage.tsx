@@ -16,9 +16,10 @@ interface Form {
   end_at: string;
   required_workers: number;
   skills: string;
+  open_recruitment: boolean;
 }
 
-const EMPTY: Form = { title: "", description: "", start_at: "", end_at: "", required_workers: 1, skills: "" };
+const EMPTY: Form = { title: "", description: "", start_at: "", end_at: "", required_workers: 1, skills: "", open_recruitment: false };
 
 export function TasksPage({ demo, onChanged, onSelect }: Props) {
   const [form, setForm] = useState<Form>(EMPTY);
@@ -37,6 +38,7 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
       end_at: toInput(t.end_at),
       required_workers: t.required_workers,
       skills: t.required_skills.join(", "),
+      open_recruitment: t.open_recruitment,
     });
   };
 
@@ -56,6 +58,7 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
       end_at: withSeconds(form.end_at),
       required_workers: Number(form.required_workers),
       required_skills: parseSkills(form.skills),
+      open_recruitment: form.open_recruitment,
     };
     try {
       if (editing) await api.updateTask(editing.id, body);
@@ -90,7 +93,7 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
         return (
           <div className="card" key={t.id}>
             <div className="row">
-              <strong className="grow">{t.title}</strong>
+              <strong className="grow">{t.title}{t.open_recruitment && <span className="badge"> 공개 모집</span>}</strong>
               <span className={`badge ${t.status}`}>{TASK_STATUS_LABEL[t.status]}</span>
             </div>
             <div className="muted">
@@ -130,6 +133,10 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
         </div>
         <label>필요 작업 유형 (쉼표로 구분)</label>
         <input value={form.skills} placeholder="수확, 선별" onChange={(e) => set({ skills: e.target.value })} />
+        <label>
+          <input type="checkbox" style={{ width: "auto" }} checked={form.open_recruitment} onChange={(e) => set({ open_recruitment: e.target.checked })} />{" "}
+          공개 모집 (처음 보는 일손도 지원할 수 있음. 지원자는 내가 직접 선택해야 배치됩니다)
+        </label>
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" disabled={busy}>{editing ? "수정 저장" : "등록"}</button>
           {editing && <button type="button" onClick={reset}>편집 취소</button>}

@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, status
 from app.api.deps import get_repository
 from app.repositories.memory import InMemoryRepository
 from app.schemas.requests import (
+    ApplyRequest,
     ConfirmationRequest,
     ConfirmRequest,
     TaskCreate,
     TaskUpdate,
 )
-from app.schemas.responses import SuggestionResult, TaskView
+from app.schemas.responses import AssignmentView, SuggestionResult, TaskView
 from app.services import assignments as assignment_service
 from app.services import tasks as task_service
 
@@ -58,6 +59,15 @@ def request_confirmation(
     repo: InMemoryRepository = Depends(get_repository),
 ) -> TaskView:
     return assignment_service.request_confirmation(repo, task_id, payload.worker_ids)
+
+
+@router.post("/{task_id}/apply", response_model=AssignmentView, status_code=status.HTTP_201_CREATED)
+def apply(
+    task_id: str,
+    payload: ApplyRequest,
+    repo: InMemoryRepository = Depends(get_repository),
+) -> AssignmentView:
+    return assignment_service.apply_to_task(repo, task_id, payload.worker_id)
 
 
 @router.post("/{task_id}/confirm", response_model=TaskView)

@@ -8,6 +8,7 @@ from app.models.domain import (
     TaskStatus,
     TimeWindow,
     Worker,
+    WorkerOrigin,
     WorkerStatus,
 )
 from app.repositories.memory import InMemoryRepository
@@ -78,6 +79,15 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 availability=[_window(day1, 8, 18)],
                 status=WorkerStatus.INACTIVE,
             ),
+            Worker(
+                id="worker_public_sori",
+                display_name="소리(공개 지원자)",
+                skills=["운반", "수확"],
+                availability=[_window(day2, 8, 18)],
+                origin=WorkerOrigin.PUBLIC,
+                experience="과수원 운반 보조 1시즌",
+                intro="처음 지원합니다. 성실하게 일하겠습니다.",
+            ),
         ]
         for worker in workers:
             repo.workers[worker.id] = worker
@@ -121,6 +131,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 end_at=_at(day2, 17),
                 required_workers=1,
                 required_skills=["운반"],
+                open_recruitment=True,
             ),
         ]
         for task in tasks:

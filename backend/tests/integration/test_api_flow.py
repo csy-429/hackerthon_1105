@@ -15,7 +15,7 @@ def _ids(candidates, eligible):
 
 def test_demo_loaded(client):
     data = client.get("/api/demo").json()
-    assert len(data["workers"]) == 6
+    assert len(data["workers"]) == 7
     assert any(t["status"] == "confirmed" for t in data["tasks"])
 
 
@@ -101,6 +101,74 @@ def test_worker_sees_own_assignments_and_edits_schedule(client):
     r = client.patch("/api/workers/worker_raon", json={
         "availability": [{"start": "2030-01-01T08:00:00", "end": "2030-01-01T18:00:00"}]})
     assert r.status_code == 200 and len(r.json()["availability"]) == 1
+
+
+def _public_worker(client, **extra):
+    body = {"display_name": "낯선이", "skills": ["운반"], "experience": "", "intro": "",
+            "availability": [{"start": "2030-01-01T08:00:00", "end": "2030-01-01T18:00:00"}]}
+    body.update(extra)
+    return client.post("/api/workers", params={"public": "true"}, json=body)
+
+
+def _open_task(client, required=1, open_recruitment=True):
+    return client.post("/api/tasks", json={
+        "farm_id": "farm_demo", "title": "공개", "start_at": "2030-01-01T09:00:00",
+        "end_at": "2030-01-01T12:00:00", "required_workers": required,
+        "required_skills": ["운반"], "open_recruitment": open_recruitment}).json()
+
+
+def test_public_applicant_flow(client):
+    task = _open_task(client)
+    w = _public_worker(client).json()
+    assert w["origin"] == "public"
+    opps = client.get(f"/api/workers/{w['id']}/opportunities").json()
+    assert any(o["task"]["id"] == task["id"] and o["evaluation"]["eligible"] for o in opps)
+
+    cands = client.post(f"/api/tasks/{task['id']}/suggestions").json()["candidates"]
+    assert w["id"] not in [c["candidate_id"] for c in cands]
+
+    r = client.post(f"/api/tasks/{task['id']}/apply", json={"worker_id": w["id"]})
+    assert r.status_code == 201 and r.json()["status"] == "applied"
+    assert client.post(f"/api/tasks/{task['id']}/apply",
+                       json={"worker_id": w["id"]}).status_code == 409
+    cands = client.post(f"/api/tasks/{task['id']}/suggestions").json()["candidates"]
+    assert w["id"] in [c["candidate_id"] for c in cands]
+    assert client.get(f"/api/tasks/{task['id']}").json()["active_count"] == 0
+
+    t = client.post(f"/api/tasks/{task['id']}/request-confirmation",
+                    json={"worker_ids": [w["id"]]}).json()
+    assert t["assignments"][0]["status"] == "accepted"
+    done = client.post(f"/api/tasks/{task['id']}/confirm", json={"farmer_approved": True})
+    assert done.json()["status"] == "confirmed"
+
+
+def test_apply_rules(client):
+    closed = _open_task(client, open_recruitment=False)
+    w = _public_worker(client).json()
+    assert client.post(f"/api/tasks/{closed['id']}/apply",
+                       json={"worker_id": w["id"]}).status_code == 409
+    task = _open_task(client)
+    bad = _public_worker(client, skills=["방제"]).json()
+    r = client.post(f"/api/tasks/{task['id']}/apply", json={"worker_id": bad["id"]})
+    assert r.status_code == 409 and r.json()["detail"]["details"]["exclusions"]
+
+
+def test_public_worker_cannot_be_picked_without_applying(client):
+    task = _open_task(client)
+    w = _public_worker(client).json()
+    r = client.post(f"/api/tasks/{task['id']}/request-confirmation",
+                    json={"worker_ids": [w["id"]]})
+    assert r.status_code == 409
+
+
+def test_withdraw_application_and_pii_rejected(client):
+    task = _open_task(client)
+    w = _public_worker(client).json()
+    asg = client.post(f"/api/tasks/{task['id']}/apply", json={"worker_id": w["id"]}).json()
+    r = client.post(f"/api/assignments/{asg['id']}/decline")
+    assert r.status_code == 200 and r.json()["status"] == "declined"
+    assert _public_worker(client, intro="연락처 010-1234-5678").status_code == 422
+    assert _public_worker(client, experience="a@b.com").status_code == 422
 
 
 def test_agent_unavailable_is_not_faked(client):

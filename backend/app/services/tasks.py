@@ -73,7 +73,8 @@ def update_task(repo: InMemoryRepository, task_id: str, payload: TaskUpdate) -> 
         if scheduling_changed and task.status == TaskStatus.PROPOSED:
             # 조건이 바뀌면 기존 배치 요청은 근거가 사라지므로 폐기하고 초안으로 되돌린다.
             for assignment in repo.assignments_for_task(task.id):
-                del repo.assignments[assignment.id]
+                if assignment.status in ACTIVE_ASSIGNMENT_STATUSES:
+                    del repo.assignments[assignment.id]
             updated.status = TaskStatus.DRAFT
         repo.tasks[task.id] = updated
         return build_task_view(repo, updated)

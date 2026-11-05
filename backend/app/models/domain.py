@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from enum import StrEnum
 
@@ -13,6 +14,7 @@ class TaskStatus(StrEnum):
 
 
 class AssignmentStatus(StrEnum):
+    APPLIED = "applied"
     PROPOSED = "proposed"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -24,6 +26,12 @@ class WorkerStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class WorkerOrigin(StrEnum):
+    ROSTER = "roster"  # 농장주가 이미 아는 일손
+    PUBLIC = "public"  # 공개 모집에 직접 지원하는 일손
+
+
+# APPLIED(지원함)는 인원을 차지하지 않는다. 농장주가 선택해야 활성 배치가 된다.
 ACTIVE_ASSIGNMENT_STATUSES = frozenset(
     {AssignmentStatus.PROPOSED, AssignmentStatus.ACCEPTED, AssignmentStatus.CONFIRMED}
 )
@@ -46,6 +54,16 @@ def normalize_skills(skills: list[str]) -> list[str]:
         if cleaned not in normalized:
             normalized.append(cleaned)
     return normalized
+
+
+CONTACT_PATTERN = re.compile(r"\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4}|[^\s@]+@[^\s@]+\.[^\s@]+")
+
+
+def reject_contact_info(value: str) -> str:
+    # MVP는 전화번호·이메일 같은 직접 식별 정보를 받지 않는다.
+    if CONTACT_PATTERN.search(value):
+        raise ValueError("전화번호·이메일 등 연락처는 입력할 수 없습니다")
+    return value
 
 
 class TimeWindow(BaseModel):
@@ -74,6 +92,9 @@ class Worker(BaseModel):
     skills: list[str] = Field(default_factory=list)
     availability: list[TimeWindow] = Field(default_factory=list)
     status: WorkerStatus = WorkerStatus.ACTIVE
+    origin: WorkerOrigin = WorkerOrigin.ROSTER
+    experience: str = ""
+    intro: str = ""
 
 
 class Task(BaseModel):
@@ -86,6 +107,7 @@ class Task(BaseModel):
     required_workers: int
     required_skills: list[str] = Field(default_factory=list)
     status: TaskStatus = TaskStatus.DRAFT
+    open_recruitment: bool = False
 
 
 class Assignment(BaseModel):

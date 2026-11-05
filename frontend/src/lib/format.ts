@@ -9,9 +9,10 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
+  applied: "지원함 (농장주 선택 대기)",
   proposed: "수락 대기",
   accepted: "수락함 (확정 전)",
-  declined: "거절",
+  declined: "거절·마감",
   confirmed: "확정",
 };
 
