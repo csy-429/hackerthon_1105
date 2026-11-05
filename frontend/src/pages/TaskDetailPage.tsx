@@ -104,7 +104,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
             배치 확정
           </button>
           {task.accepted_count !== task.required_workers && (
-            <span className="muted"> 필요 인원 {task.required_workers}명 모두 수락해야 확정할 수 있습니다 (현재 {task.accepted_count}명). 일손은 '일손 화면' 탭에서 수락합니다.</span>
+            <span className="muted"> 필요 인원 {task.required_workers}명 모두 수락해야 확정할 수 있습니다 (현재 {task.accepted_count}명). 일손은 '일손으로 시작'에서 수락합니다.</span>
           )}
         </div>
       )}

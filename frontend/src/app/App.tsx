@@ -1,19 +1,45 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import type { Demo } from "../types";
+import { HomePage } from "../pages/HomePage";
 import { TaskDetailPage } from "../pages/TaskDetailPage";
 import { TasksPage } from "../pages/TasksPage";
 import { WorkersPage } from "../pages/WorkersPage";
 import { WorkerPortalPage } from "../pages/WorkerPortalPage";
 
-type Tab = "tasks" | "workers" | "portal";
+export type Role = "farmer" | "worker";
+type Tab = "tasks" | "workers";
+
+const ROLE_KEY = "ilson.role";
+
+function loadRole(): Role | null {
+  try {
+    const v = window.localStorage.getItem(ROLE_KEY);
+    return v === "farmer" || v === "worker" ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 export function App() {
+  const [role, setRoleState] = useState<Role | null>(loadRole);
   const [demo, setDemo] = useState<Demo | null>(null);
   const [tab, setTab] = useState<Tab>("tasks");
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const setRole = (next: Role | null) => {
+    setRoleState(next);
+    setSelected(null);
+    setTab("tasks");
+    try {
+      if (next) window.localStorage.setItem(ROLE_KEY, next);
+      else window.localStorage.removeItem(ROLE_KEY);
+    } catch {
+      /* 저장소를 쓸 수 없으면 새로고침 시 홈으로 돌아간다 */
+    }
+  };
 
   const load = useCallback(async (reset: boolean) => {
     setLoading(true);
@@ -39,19 +65,20 @@ export function App() {
   return (
     <>
       <header>
-        <h1>일손잇다</h1>
-        <nav>
-          <button className={tab === "tasks" ? "active" : ""} onClick={() => { setTab("tasks"); setSelected(null); }}>
-            작업·일정
-          </button>
-          <button className={tab === "workers" ? "active" : ""} onClick={() => setTab("workers")}>
-            일손
-          </button>
-          <button className={tab === "portal" ? "active" : ""} onClick={() => setTab("portal")}>
-            일손 화면
-          </button>
-        </nav>
+        <h1 style={{ cursor: "pointer" }} onClick={() => setRole(null)}>일손잇다</h1>
+        {role === "farmer" && (
+          <nav>
+            <button className={tab === "tasks" ? "active" : ""} onClick={() => { setTab("tasks"); setSelected(null); }}>
+              작업·일정
+            </button>
+            <button className={tab === "workers" ? "active" : ""} onClick={() => setTab("workers")}>
+              일손 목록
+            </button>
+          </nav>
+        )}
+        {role && <span className="badge">{role === "farmer" ? "농장주 모드" : "일손 모드"}</span>}
         <span className="grow" />
+        {role && <button onClick={() => setRole(null)}>역할 바꾸기</button>}
         <button disabled={loading} onClick={() => void load(true)}>
           데모 데이터 불러오기(초기화)
         </button>
@@ -64,14 +91,15 @@ export function App() {
             {error} <button onClick={() => void refresh()}>다시 시도</button>
           </div>
         )}
-        {demo && tab === "tasks" && !task && (
+        {!role && <HomePage onSelect={setRole} />}
+        {demo && role === "farmer" && tab === "tasks" && !task && (
           <TasksPage demo={demo} onChanged={refresh} onSelect={setSelected} />
         )}
-        {demo && tab === "tasks" && task && (
+        {demo && role === "farmer" && tab === "tasks" && task && (
           <TaskDetailPage task={task} demo={demo} onChanged={refresh} onBack={() => setSelected(null)} />
         )}
-        {demo && tab === "workers" && <WorkersPage workers={demo.workers} onChanged={refresh} />}
-        {demo && tab === "portal" && <WorkerPortalPage demo={demo} onChanged={refresh} />}
+        {demo && role === "farmer" && tab === "workers" && <WorkersPage workers={demo.workers} onChanged={refresh} />}
+        {demo && role === "worker" && <WorkerPortalPage demo={demo} onChanged={refresh} />}
       </main>
     </>
   );
