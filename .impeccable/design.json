@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-05T16:13:41+09:00",
+  "title": "Design System: 일손잇다",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "들판 종이", "canonical": "#f4efe3" },
+      "surface": { "role": "neutral", "displayName": "표면 크림", "canonical": "#fffdf7" },
+      "field": { "role": "primary", "displayName": "농지 초록", "canonical": "#1f5a34" },
+      "field-deep": { "role": "primary", "displayName": "깊은 농지 초록", "canonical": "#163f25" },
+      "harvest": { "role": "secondary", "displayName": "수확 주황", "canonical": "#a24f08" },
+      "berry": { "role": "tertiary", "displayName": "오류 베리", "canonical": "#a3261c" },
+      "sky": { "role": "secondary", "displayName": "하늘 파랑", "canonical": "#1c5a7d" }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 1px 2px rgba(60, 45, 15, .08), 0 6px 18px -8px rgba(60, 45, 15, .18)", "purpose": "기본 카드의 낮고 부드러운 깊이." },
+      { "name": "header", "value": "0 2px 10px rgba(22, 63, 37, .25)", "purpose": "고정 헤더와 스크롤 콘텐츠를 구분." }
+    ],
+    "motion": [
+      { "name": "ease-field", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "버튼과 카드 상호작용의 부드러운 전환." },
+      { "name": "duration", "value": ".18s–.28s", "purpose": "상태 전환과 모달 등장. reduced-motion 설정 시 비활성." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "520px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "주요 행동 버튼.",
+      "html": "<button class=\"ds-primary\">작업 저장</button>",
+      "css": ".ds-primary { background: #1f5a34; color: #fff; padding: 8px 16px; min-height: 44px; border: 1.5px solid #1f5a34; border-radius: 8px; font: 600 17px/1.55 'Pretendard Variable', sans-serif; transition: background-color .18s cubic-bezier(.16,1,.3,1), border-color .18s cubic-bezier(.16,1,.3,1); } .ds-primary:hover { background: #163f25; border-color: #163f25; } .ds-primary:focus-visible { outline: 3px solid #a24f08; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "보조 행동 버튼.",
+      "html": "<button class=\"ds-secondary\">취소</button>",
+      "css": ".ds-secondary { background: #fffdf7; color: #1d2a1f; padding: 8px 16px; min-height: 44px; border: 1.5px solid #b9ad92; border-radius: 8px; font: 600 17px/1.55 'Pretendard Variable', sans-serif; } .ds-secondary:hover { background: #ece5d3; border-color: #8d8160; } .ds-secondary:focus-visible { outline: 3px solid #a24f08; outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "작업 및 정보 그룹 컨테이너.",
+      "html": "<section class=\"ds-card\"><strong>작업 일정</strong><p>수확 작업 정보를 확인하세요.</p></section>",
+      "css": ".ds-card { background: #fffdf7; color: #1d2a1f; border: 1px solid #d9cfb8; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(60,45,15,.08), 0 6px 18px -8px rgba(60,45,15,.18); font: 400 17px/1.55 'Pretendard Variable', sans-serif; } .ds-card p { color: #4f5b4c; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "기본 텍스트 입력 필드.",
+      "html": "<label class=\"ds-label\">작업 이름<input class=\"ds-input\" placeholder=\"예: 사과 수확\" /></label>",
+      "css": ".ds-label { display: block; color: #4f5b4c; font: 600 0.9rem/1.55 'Pretendard Variable', sans-serif; } .ds-input { display: block; box-sizing: border-box; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 12px; background: #fff; color: #1d2a1f; border: 1.5px solid #b9ad92; border-radius: 8px; font: 400 17px/1.55 'Pretendard Variable', sans-serif; } .ds-input:focus-visible { outline: 3px solid #a24f08; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "description": "상태를 짧은 텍스트와 함께 표시.",
+      "html": "<span class=\"ds-badge\">확정</span>",
+      "css": ".ds-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #e3eedf; color: #144a28; font: 700 .8rem/1.5 'Pretendard Variable', sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "햇살 아래 들판의 작업대",
+    "overview": "일손잇다는 농장주와 일손이 휴대전화로 일정을 확인하고 결정을 내리는 업무 화면이다. 시각 언어는 따뜻한 종이색 바탕과 짙은 농지 초록을 중심으로, 수확 주황을 필요한 주의와 강조에 제한해 사용한다. 장식보다 한눈에 읽히는 정보 구조, 뚜렷한 상호작용, 야외 사용을 고려한 큰 터치 영역을 우선한다.\n\nPretendard Variable을 기본으로 사용하고, 입력·작업 카드·목록 등 현재 제품의 기능 구조를 그대로 따른다. 반응형 화면에서도 농장주와 일손의 용어 및 기존 흐름은 유지한다.",
+    "keyCharacteristics": [
+      "종이빛 중립 배경과 깊은 농지 초록",
+      "모바일 우선, 읽기 쉬운 한글과 넉넉한 터치 영역",
+      "색은 상태와 행동을 구분하는 데 사용",
+      "정보 중심의 카드·폼·목록 UI"
+    ],
+    "dos": [
+      "Do `frontend/src/app/styles.css`의 CSS 변수와 전역 컴포넌트 규칙을 시각 스타일의 단일 기준으로 사용한다.",
+      "Do 주요 버튼과 입력을 최소 `44px` 높이로 유지한다.",
+      "Do 상태를 색만으로 전달하지 말고 라벨과 함께 보여준다.",
+      "Do `prefers-reduced-motion`을 존중하고 키보드 포커스를 눈에 띄게 표시한다."
+    ],
+    "donts": [
+      "Don't 작은 본문 글자나 낮은 대비에 의존하지 않는다.",
+      "Don't 농지 초록·수확 주황·종이색 팔레트와 무관한 장식용 그라디언트를 추가하지 않는다.",
+      "Don't 기존 농장주·일손 용어와 업무 흐름을 시각 개선을 이유로 바꾸지 않는다.",
+      "Don't 이모지를 아이콘 체계나 상태 전달의 유일한 수단으로 사용하지 않는다."
+    ]
+  }
+}

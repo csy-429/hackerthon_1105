@@ -7,6 +7,7 @@
 - [PRD.md](./PRD.md) — 제품 요구사항 및 MVP 범위
 - [TRD.md](./TRD.md) — 기술 구조, 데이터 모델, API 초안
 - [TDD.md](./TDD.md) — 테스트 설계 및 MVP 검증 기준
+- [DESIGN.md](./DESIGN.md) — 실제 프론트엔드의 색상·타이포그래피·컴포넌트 디자인 시스템
 
 > TDD는 Test Design Document(테스트 설계서)를 뜻합니다. 제출 필수 문서는 PRD와 TRD이며, TDD는 보조 문서입니다.
 
@@ -35,7 +36,7 @@ AI 배치 설명은 Microsoft Agent Framework의 GitHub Copilot provider를 사�
 ```text
 frontend/
   src/
-    app/                         # 앱 진입점, 라우팅, 전역 상태
+    app/                         # 앱 진입점, 라우팅, 전역 상태와 디자인 토큰(styles.css)
     pages/                       # 작업 목록, 등록·수정, 배치 제안 화면
     features/
       tasks/                     # 작업 등록과 상태 관리
@@ -59,5 +60,7 @@ backend/
     integration/                 # API 통합 테스트
 infra/                           # Azure 배포 설정
 ```
+
+프론트엔드 시각 기준은 `DESIGN.md`와 `frontend/src/app/styles.css`를 함께 참고합니다. 전역 스타일은 Pretendard Variable, 종이색·농지 초록 팔레트, 최소 44px 조작 영역, 키보드 포커스 및 reduced-motion 처리를 제공합니다.
 
 매칭·충돌 판정과 배정 확정 검증은 백엔드의 결정적 업무 규칙으로 유지하며, 에이전트는 검증된 결과를 설명하는 역할만 담당합니다. 각 디렉터리의 `.gitkeep`은 구현 파일이 추가되기 전까지 구조를 Git에 보존합니다.

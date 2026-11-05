@@ -30,6 +30,8 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - 배치 제안, 매칭 이유, 충돌 경고 화면
 - 작업자 수락·거절을 시연하는 데모 화면
 - AI 처리 중 상태와 실패 메시지 표시
+- 전역 시각 스타일과 반응형 규칙은 `frontend/src/app/styles.css`가 관리하며, 구현 토큰과 컴포넌트 기준은 [DESIGN.md](./DESIGN.md)에 기록한다.
+- `pretendard` 패키지에서 Pretendard Variable 폰트를 제공한다. CSS는 최소 44px 조작 영역, 키보드 포커스, reduced-motion 환경을 지원한다.
 
 ### Backend API
 
