@@ -41,6 +41,15 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.coverage
+*.sqlite3
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
