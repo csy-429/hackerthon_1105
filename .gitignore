@@ -156,3 +156,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+*.egg-info/
+node_modules/
+dist/

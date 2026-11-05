@@ -10,6 +10,20 @@
 
 > TDD는 Test Design Document(테스트 설계서)를 뜻합니다. 제출 필수 문서는 PRD와 TRD이며, TDD는 보조 문서입니다.
 
+## 실행 방법
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev]"
+cd frontend; npm install; npm run build; cd ..
+.\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --port 8000   # http://localhost:8000
+.\.venv\Scripts\python -m pytest                                               # 백엔드 테스트
+```
+
+개발 중 프론트엔드는 `cd frontend; npm run dev`(`/api`는 8000 포트로 프록시)로 실행합니다.
+데이터는 서버 메모리에만 저장되며, 시작 시 데모 데이터가 자동으로 로드됩니다.
+AI 에이전트는 아직 연결되지 않아 `POST /api/agent/plan`은 503을 반환합니다(후보 필터링·충돌 검사는 AI 없이 동작).
+
 ## 프로젝트 구조
 
 ```text

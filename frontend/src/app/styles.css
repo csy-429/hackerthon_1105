@@ -1,0 +1,30 @@
+:root { font-family: system-ui, "Malgun Gothic", sans-serif; color: #1f2937; }
+body { margin: 0; background: #f6f7f4; }
+header { background: #2f6b3f; color: #fff; padding: 12px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+header h1 { font-size: 20px; margin: 0; }
+nav button { background: transparent; color: #fff; border: 0; padding: 6px 12px; cursor: pointer; font-size: 15px; border-radius: 6px; }
+nav button.active { background: rgba(255,255,255,.2); font-weight: 700; }
+main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+.notice { background: #fff8e1; border: 1px solid #f0d98c; padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+.card { background: #fff; border: 1px solid #dde2d8; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+button { cursor: pointer; padding: 6px 12px; border-radius: 6px; border: 1px solid #9aa89a; background: #fff; }
+button.primary { background: #2f6b3f; color: #fff; border-color: #2f6b3f; }
+button.danger { color: #b42318; border-color: #b42318; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+label { display: block; font-size: 13px; margin: 8px 0 2px; }
+input, textarea, select { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #c4cbc0; border-radius: 6px; font: inherit; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #e5e7eb; }
+.badge.confirmed { background: #d1fae5; color: #065f46; }
+.badge.proposed { background: #fef3c7; color: #92400e; }
+.badge.cancelled { background: #fee2e2; color: #991b1b; }
+.badge.draft { background: #e0e7ff; color: #3730a3; }
+.error { background: #fee2e2; color: #991b1b; padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+.info { background: #e0f2fe; color: #075985; padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+.ok { color: #065f46; }
+.warn { color: #92400e; }
+.bad { color: #b42318; }
+ul { margin: 4px 0; padding-left: 20px; }
+progress { width: 120px; }
+.muted { color: #6b7280; font-size: 13px; }
