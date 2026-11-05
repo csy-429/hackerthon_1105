@@ -18,7 +18,7 @@ interface Guide {
 
 const GUIDES: Record<Role, Guide> = {
   farmer: {
-    label: "🌾 농장주",
+    label: "농장주",
     intro: "작업을 올리고, 맞는 일손을 골라 확정하기까지 5단계입니다.",
     steps: [
       {
@@ -59,7 +59,7 @@ const GUIDES: Record<Role, Guide> = {
     ],
   },
   worker: {
-    label: "🧑‍🌾 일손",
+    label: "일손",
     intro: "스케줄을 등록하고, 맞는 작업에 지원하거나 요청을 수락하기까지 4단계입니다.",
     steps: [
       {
@@ -134,7 +134,7 @@ export function GuidePage({ onStart, onBack }: Props) {
             <div className="grow">
               <strong>{s.title}</strong>
               <p>{s.desc}</p>
-              <span className="badge">📍 {s.where}</span>
+              <span className="badge">{s.where}</span>
             </div>
           </li>
         ))}

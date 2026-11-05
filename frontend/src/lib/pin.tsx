@@ -71,7 +71,7 @@ export function PinDialog() {
     return (
       <div className="modal-backdrop" onClick={() => setDone(null)}>
         <div className="modal card" role="dialog" aria-live="polite" onClick={(e) => e.stopPropagation()}>
-          <h3>✅ {done.title}</h3>
+          <h3>{done.title}</h3>
           <p>{done.message}</p>
           <div className="row">
             <button className="primary" autoFocus onClick={() => setDone(null)}>확인</button>

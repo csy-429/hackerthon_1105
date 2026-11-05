@@ -91,7 +91,7 @@ export function Chat({ assignment, me, onChanged }: Props) {
   const wageSummary = (
     <>
       {assignment.agreed_wage && (
-        <div className="notice">✔ 합의 시급: {assignment.agreed_wage.toLocaleString()}원 (채팅에서 양측이 합의한 금액입니다)</div>
+        <div className="notice">합의 시급: {assignment.agreed_wage.toLocaleString()}원 (채팅에서 양측이 합의한 금액입니다)</div>
       )}
       {assignment.offer_wage && assignment.offer_by && (
         <div className="info">
@@ -121,7 +121,7 @@ export function Chat({ assignment, me, onChanged }: Props) {
         {wageSummary}
         {error && <div className="error">{error}</div>}
         <button onClick={() => void unlock()}>
-          💬 협의 채팅 열기{incomingOffer ? " (시급 제안 도착)" : ""}
+          협의 채팅 열기{incomingOffer ? " (시급 제안 도착)" : ""}
         </button>
       </div>
     );
@@ -136,7 +136,7 @@ export function Chat({ assignment, me, onChanged }: Props) {
         {messages.map((m) => (
           <div key={m.id} className={`bubble ${m.sender === me ? "me" : ""} ${m.kind !== "text" ? "wage" : ""}`}>
             <small>{LABEL[m.sender]}</small>
-            {m.kind === "text" ? m.text : `💰 ${m.text}`}
+            {m.kind === "text" ? m.text : `${m.text}`}
           </div>
         ))}
       </div>

@@ -14,15 +14,15 @@ export function HomePage({ onSelect, onGuide }: Props) {
         일손이 수락하기 전에는 배치가 확정되지 않습니다.
       </p>
       <div className="row" style={{ marginBottom: 12 }}>
-        <button className="primary" onClick={onGuide}>📖 처음이신가요? 사용 방법 보기</button>
+        <button className="primary" onClick={onGuide}>처음이신가요? 사용 방법 보기</button>
       </div>
       <div className="row" style={{ alignItems: "stretch" }}>
         <button className="card grow role-card" onClick={() => onSelect("farmer")}>
-          <h3>🌾 농장주로 시작</h3>
+          <h3>농장주로 시작</h3>
           <p>작업 등록·수정·취소, 후보 검토, 배치 요청과 확정</p>
         </button>
         <button className="card grow role-card" onClick={() => onSelect("worker")}>
-          <h3>🧑‍🌾 일손으로 시작</h3>
+          <h3>일손으로 시작</h3>
           <p>내 스케줄 관리, 받은 배치 요청 수락·거절</p>
         </button>
       </div>

@@ -130,7 +130,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           </div>
           <ul>{a.match_reasons.map((r) => <li key={r} className="ok">{r}</li>)}</ul>
           {a.override_reasons.length > 0 && (
-            <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치 요청: {r}</li>)}</ul>
+            <ul>{a.override_reasons.map((r) => <li key={r} className="warn">조건 불일치 요청: {r}</li>)}</ul>
           )}
           <Chat assignment={a} me="farmer" onChanged={onChanged} />
         </div>
@@ -209,9 +209,9 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
                 </div>
               )}
               <ul>
-                {c.reasons.map((r) => <li key={r} className="ok">✔ {r}</li>)}
-                {c.warnings.map((r) => <li key={r} className="warn">⚠ {r}</li>)}
-                {c.exclusions.map((r) => <li key={r} className="bad">✖ {r}</li>)}
+                {c.reasons.map((r) => <li key={r} className="ok">{r}</li>)}
+                {c.warnings.map((r) => <li key={r} className="warn">{r}</li>)}
+                {c.exclusions.map((r) => <li key={r} className="bad">{r}</li>)}
               </ul>
               {c.conflicts.length > 0 && (
                 <div className="muted">

@@ -259,9 +259,9 @@ export function WorkerPortalPage({ demo, workerId, onWorkerChange, focusTaskId, 
               {fmt(o.task.start_at)} ~ {fmt(o.task.end_at)} · 시급 {o.task.hourly_wage ? `${o.task.hourly_wage.toLocaleString()}원` : "협의"} · 조건: {o.task.required_skills.join(", ") || "없음"}
             </div>
             <ul>
-              {o.evaluation.reasons.map((r) => <li key={r} className="ok">✔ {r}</li>)}
-              {o.evaluation.warnings.map((r) => <li key={r} className="warn">⚠ {r}</li>)}
-              {o.evaluation.exclusions.map((r) => <li key={r} className="bad">✖ {r}</li>)}
+              {o.evaluation.reasons.map((r) => <li key={r} className="ok">{r}</li>)}
+              {o.evaluation.warnings.map((r) => <li key={r} className="warn">{r}</li>)}
+              {o.evaluation.exclusions.map((r) => <li key={r} className="bad">{r}</li>)}
             </ul>
             {status ? (
               <span className="badge">{ASSIGNMENT_STATUS_LABEL[status]}</span>
@@ -319,7 +319,7 @@ export function WorkerPortalPage({ demo, workerId, onWorkerChange, focusTaskId, 
             )}
             {a.status === "accepted" && <div className="muted">수락했습니다. 농장주가 확정하면 확정으로 바뀝니다.</div>}
             {a.override_reasons.length > 0 && (
-              <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치: {r}</li>)}</ul>
+              <ul>{a.override_reasons.map((r) => <li key={r} className="warn">조건 불일치: {r}</li>)}</ul>
             )}
             <Chat assignment={a} me="worker" onChanged={async () => { await onChanged(); await loadAssignments(); }} />
           </div>

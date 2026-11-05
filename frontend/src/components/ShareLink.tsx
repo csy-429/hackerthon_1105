@@ -21,11 +21,11 @@ export function ShareLink({ taskId }: { taskId: string }) {
 
   return (
     <div className="card">
-      <strong>🔗 공고 공유 링크</strong>
+      <strong>공고 공유 링크</strong>
       <div className="muted">처음 보는 일손에게 이 링크를 보내면 공고를 보고 바로 지원할 수 있습니다. 모집이 끝나면 링크에 마감으로 표시됩니다.</div>
       <div className="row">
         <input className="grow" readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-        <button onClick={() => void copy()}>{copied ? "복사됨 ✔" : "링크 복사"}</button>
+        <button onClick={() => void copy()}>{copied ? "복사됨 " : "링크 복사"}</button>
       </div>
     </div>
   );
