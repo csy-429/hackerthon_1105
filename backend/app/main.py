@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -10,7 +11,10 @@ from app.api.ratelimit import SlidingWindowLimiter
 from app.api.router import api_router
 from app.errors import DomainError
 from app.repositories.memory import InMemoryRepository
+from app.repositories.persistence import default_state_file, load_state, save_state
 from app.services.demo import load_demo
+
+logger = logging.getLogger(__name__)
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
@@ -23,12 +27,31 @@ def create_app(
     repo: InMemoryRepository | None = None,
     planner: AgentPlanner | None = None,
     serve_frontend: bool = True,
+    state_file: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="일손잇다 API", version="0.1.0")
     app.state.repo = repo or InMemoryRepository()
     app.state.planner = planner if planner is not None else create_default_planner()
     app.state.agent_limiter = SlidingWindowLimiter(limit=6, window_seconds=60)
-    load_demo(app.state.repo)
+    state_path = state_file if state_file is not None else (
+        default_state_file() if repo is None else None
+    )
+    if state_path is None or not load_state(app.state.repo, state_path):
+        load_demo(app.state.repo)
+        if state_path is not None:
+            save_state(app.state.repo, state_path)
+
+    if state_path is not None:
+
+        @app.middleware("http")
+        async def _persist(request: Request, call_next):
+            response = await call_next(request)
+            if request.method not in ("GET", "HEAD", "OPTIONS") and response.status_code < 500:
+                try:
+                    save_state(app.state.repo, state_path)
+                except Exception:
+                    logger.exception("상태 저장에 실패했습니다")
+            return response
 
     @app.exception_handler(DomainError)
     async def _domain_error(_: Request, exc: DomainError) -> JSONResponse:
