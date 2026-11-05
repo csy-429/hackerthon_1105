@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Header
 from app.api.deps import get_repository
 from app.models.domain import Message
 from app.repositories.memory import InMemoryRepository
-from app.schemas.requests import MessageCreate
+from app.schemas.requests import MessageCreate, WageOfferCreate
 from app.schemas.responses import AssignmentView
 from app.services import assignments as assignment_service
 
@@ -48,6 +48,25 @@ def messages(
     repo: InMemoryRepository = Depends(get_repository),
 ) -> list[Message]:
     return assignment_service.list_messages(repo, assignment_id, x_pin)
+
+
+@router.post("/{assignment_id}/wage-offer", response_model=AssignmentView)
+def wage_offer(
+    assignment_id: str,
+    payload: WageOfferCreate,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
+) -> AssignmentView:
+    return assignment_service.offer_wage(repo, assignment_id, x_pin, payload.wage)
+
+
+@router.post("/{assignment_id}/wage-offer/accept", response_model=AssignmentView)
+def wage_accept(
+    assignment_id: str,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
+) -> AssignmentView:
+    return assignment_service.accept_wage(repo, assignment_id, x_pin)
 
 
 @router.post("/{assignment_id}/messages", response_model=Message, status_code=201)

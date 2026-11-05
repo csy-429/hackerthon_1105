@@ -138,6 +138,10 @@ class MessageCreate(_Strict):
     text: ChatText
 
 
+class WageOfferCreate(_Strict):
+    wage: Wage
+
+
 class ConfirmRequest(_Strict):
     farmer_approved: bool
 

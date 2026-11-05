@@ -155,3 +155,46 @@ def test_chat_between_parties(client):
                        headers={"X-Pin": "5678"}).status_code == 422
     client.post(f"/api/assignments/{asg}/decline", headers={"X-Pin": "5678"})
     assert client.post(url, json={"text": "hi"}, headers={"X-Pin": "5678"}).status_code == 409
+
+
+def _asg(client, t, w):
+    return client.post(f"/api/tasks/{t['id']}/request-confirmation",
+                       json={"worker_ids": [w["id"]]},
+                       headers={"X-Pin": "4321"}).json()["assignments"][0]["id"]
+
+
+def test_wage_offer_and_agreement(client):
+    t = _task(client, wage=11000)
+    w = _worker(client)
+    asg = _asg(client, t, w)
+    farmer, worker = {"X-Pin": "4321"}, {"X-Pin": "5678"}
+    base = f"/api/assignments/{asg}"
+    assert client.post(f"{base}/wage-offer", json={"wage": 12000}).status_code == 401
+    assert client.post(f"{base}/wage-offer/accept", headers=worker).status_code == 409
+    assert client.post(f"{base}/wage-offer", json={"wage": 0}, headers=worker).status_code == 422
+    offered = client.post(f"{base}/wage-offer", json={"wage": 12500}, headers=worker).json()
+    assert offered["offer_wage"] == 12500 and offered["offer_by"] == "worker"
+    assert offered["agreed_wage"] is None
+    # 제안자 본인은 수락할 수 없다
+    assert client.post(f"{base}/wage-offer/accept", headers=worker).status_code == 409
+    # 새 제안은 이전 제안을 대체한다
+    counter = client.post(f"{base}/wage-offer", json={"wage": 12000}, headers=farmer).json()
+    assert counter["offer_wage"] == 12000 and counter["offer_by"] == "farmer"
+    agreed = client.post(f"{base}/wage-offer/accept", headers=worker).json()
+    assert agreed["agreed_wage"] == 12000 and agreed["offer_wage"] is None
+    kinds = [m["kind"] for m in client.get(f"{base}/messages", headers=worker).json()]
+    assert kinds == ["wage_offer", "wage_offer", "wage_accept"]
+    assert client.post(f"{base}/wage-offer/accept", headers=farmer).status_code == 409
+
+
+def test_assignment_exposes_message_metadata_without_content(client):
+    t = _task(client)
+    w = _worker(client)
+    asg = _asg(client, t, w)
+    view = client.get(f"/api/tasks/{t['id']}").json()["assignments"][0]
+    assert view["message_count"] == 0 and view["last_message_sender"] is None
+    client.post(f"/api/assignments/{asg}/messages", json={"text": "hi"},
+                headers={"X-Pin": "4321"})
+    view = client.get(f"/api/assignments?task_id={t['id']}").json()[0]
+    assert view["message_count"] == 1 and view["last_message_sender"] == "farmer"
+    assert "text" not in view

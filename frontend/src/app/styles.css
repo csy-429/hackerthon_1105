@@ -49,3 +49,6 @@ progress { width: 120px; }
 .bubble { padding: 4px 10px; border-radius: 12px; max-width: 80%; font-size: 14px; background: #e8eee4; align-self: flex-start; }
 .bubble.me { background: #d6ead9; align-self: flex-end; }
 .bubble small { display: block; color: #667; font-size: 11px; }
+.bubble.wage { background: #fef3c7; }
+.badge.new { background: #dc2626; color: #fff; font-weight: 600; }
+.card.highlight { border: 2px solid #2f7d32; box-shadow: 0 0 0 3px #d6ead9; }

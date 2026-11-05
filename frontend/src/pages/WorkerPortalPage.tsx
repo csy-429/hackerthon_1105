@@ -2,20 +2,27 @@ import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
 import { askPin } from "../lib/pin";
+import { isUnread, workerInbox, useSeenTick } from "../lib/inbox";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt, parseSkills, withSeconds } from "../lib/format";
 import type { AssignmentView, Demo, Opportunity, TimeWindow } from "../types";
 
 interface Props {
   demo: Demo;
+  workerId: string;
+  onWorkerChange: (id: string) => void;
+  /** 공유 링크로 들어왔을 때 강조할 작업 */
+  focusTaskId?: string | null;
   onChanged: () => Promise<void>;
 }
 
 const PIN_PROMPT = "내 프로필 비밀번호 4자리를 입력하세요.";
 
-export function WorkerPortalPage({ demo, onChanged }: Props) {
+export function WorkerPortalPage({ demo, workerId, onWorkerChange, focusTaskId, onChanged }: Props) {
+  useSeenTick();
   const active = demo.workers;
-  const [workerId, setWorkerId] = useState(active[0]?.id ?? "");
+  const setWorkerId = onWorkerChange;
   const worker = demo.workers.find((w) => w.id === workerId) ?? null;
+  const inbox = workerInbox(demo.tasks, workerId);
 
   const [skills, setSkills] = useState("");
   const [windows, setWindows] = useState<TimeWindow[]>([]);
@@ -46,6 +53,12 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
   useEffect(() => {
     void loadOpps();
   }, [loadOpps, demo.tasks, demo.workers]);
+
+  useEffect(() => {
+    if (focusTaskId && opps.some((o) => o.task.id === focusTaskId)) {
+      document.getElementById(`opp-${focusTaskId}`)?.scrollIntoView({ block: "center" });
+    }
+  }, [focusTaskId, opps.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createProfile = async () => {
     setBusy(true);
@@ -220,14 +233,25 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
       {creating && profileForm}
       {error && <div className="error">{error}</div>}
 
+      <h3>내 할 일</h3>
+      <div className={inbox.actions + inbox.unread > 0 ? "info" : "muted"}>
+        {inbox.actions + inbox.unread > 0
+          ? `응답이 필요한 배치 요청 ${inbox.actions}건 · 안 읽은 메시지 ${inbox.unread}건 (아래 '받은 배치 요청'을 확인하세요)`
+          : "지금 처리할 항목이 없습니다. 푸시 알림은 없으니 가끔 이 화면을 확인하세요."}
+      </div>
+
       <h3>모집 중인 작업</h3>
       {opps.length === 0 && <p className="muted">현재 공개 모집 중인 작업이 없습니다.</p>}
+      {focusTaskId && !opps.some((o) => o.task.id === focusTaskId) && (
+        <div className="info">공유받은 공고는 현재 모집 중이 아닙니다(마감·취소되었거나 공개 모집이 아닙니다).</div>
+      )}
       {opps.map((o) => {
         const status = o.evaluation.assignment_status;
         return (
-          <div className="card" key={o.task.id}>
+          <div className={`card ${o.task.id === focusTaskId ? "highlight" : ""}`} id={`opp-${o.task.id}`} key={o.task.id}>
             <div className="row">
               <strong className="grow">{o.task.title}</strong>
+              {o.task.id === focusTaskId && <span className="badge new">공유받은 공고</span>}
               <span className="badge">남은 자리 {o.free_slots}명</span>
             </div>
             <div className="muted">
@@ -269,6 +293,8 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
           <div className="card" key={a.id}>
             <div className="row">
               <strong className="grow">{t?.title ?? a.task_id}</strong>
+              {isUnread(a, "worker") && <span className="badge new">새 메시지</span>}
+              {a.agreed_wage && <span className="badge">합의 시급 {a.agreed_wage.toLocaleString()}원</span>}
               <span className="badge">{ASSIGNMENT_STATUS_LABEL[a.status]}</span>
             </div>
             {t && (
@@ -294,7 +320,7 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
             {a.override_reasons.length > 0 && (
               <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치: {r}</li>)}</ul>
             )}
-            <Chat assignmentId={a.id} me="worker" closed={a.status === "declined"} />
+            <Chat assignment={a} me="worker" onChanged={async () => { await onChanged(); await loadAssignments(); }} />
           </div>
         );
       })}

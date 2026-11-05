@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
+import { ShareLink } from "../components/ShareLink";
+import { isUnread, useSeenTick } from "../lib/inbox";
 import { askPin } from "../lib/pin";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt } from "../lib/format";
 import type { AgentPlan, Candidate, Demo, Suggestions, Task } from "../types";
@@ -19,6 +21,7 @@ type AiState =
   | { phase: "done"; plan: AgentPlan };
 
 export function TaskDetailPage({ task, onChanged, onBack }: Props) {
+  useSeenTick();
   const [sug, setSug] = useState<Suggestions | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [approved, setApproved] = useState(false);
@@ -95,6 +98,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
         {task.status !== "confirmed" && <span className="muted">※ 일손이 모두 수락하고 농장주가 승인해야 확정됩니다.</span>}
       </p>
       {error && <div className="error">{error}</div>}
+      {task.open_recruitment && open && <ShareLink taskId={task.id} />}
 
       <h3>배치 현황</h3>
       {task.assignments.length === 0 && <p className="muted">아직 배치 요청이 없습니다.</p>}
@@ -102,13 +106,15 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
         <div className="card" key={a.id}>
           <div className="row">
             <strong className="grow">{a.worker_name}</strong>
+            {isUnread(a, "farmer") && <span className="badge new">새 메시지</span>}
+            {a.agreed_wage && <span className="badge">합의 시급 {a.agreed_wage.toLocaleString()}원</span>}
             <span className="badge">{ASSIGNMENT_STATUS_LABEL[a.status]}</span>
           </div>
           <ul>{a.match_reasons.map((r) => <li key={r} className="ok">{r}</li>)}</ul>
           {a.override_reasons.length > 0 && (
             <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치 요청: {r}</li>)}</ul>
           )}
-          <Chat assignmentId={a.id} me="farmer" closed={a.status === "declined"} />
+          <Chat assignment={a} me="farmer" onChanged={onChanged} />
         </div>
       ))}
 

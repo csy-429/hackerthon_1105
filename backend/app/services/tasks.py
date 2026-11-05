@@ -1,6 +1,7 @@
 from app.errors import ConflictError, DomainError
 from app.models.domain import (
     ACTIVE_ASSIGNMENT_STATUSES,
+    Assignment,
     AssignmentStatus,
     Task,
     TaskStatus,
@@ -14,12 +15,21 @@ from app.services.matching import suggest_candidates
 SCHEDULING_FIELDS = ("start_at", "end_at", "required_workers", "required_skills")
 
 
+def build_assignment_view(repo: InMemoryRepository, assignment: Assignment) -> AssignmentView:
+    messages = [m for m in repo.messages.values() if m.assignment_id == assignment.id]
+    last = max(messages, key=lambda m: m.created_at, default=None)
+    return AssignmentView(
+        **assignment.model_dump(),
+        worker_name=repo.get_worker(assignment.worker_id).display_name,
+        message_count=len(messages),
+        last_message_sender=last.sender if last else None,
+        last_message_at=last.created_at if last else None,
+    )
+
+
 def build_task_view(repo: InMemoryRepository, task: Task) -> TaskView:
     assignments = repo.assignments_for_task(task.id)
-    views = [
-        AssignmentView(**a.model_dump(), worker_name=repo.get_worker(a.worker_id).display_name)
-        for a in assignments
-    ]
+    views = [build_assignment_view(repo, a) for a in assignments]
     return TaskView(
         **task.model_dump(),
         assignments=views,

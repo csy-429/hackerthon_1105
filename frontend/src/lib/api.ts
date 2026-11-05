@@ -79,6 +79,10 @@ export const api = {
     request<Message[]>("GET", `/assignments/${assignmentId}/messages`, undefined, pin),
   sendMessage: (assignmentId: string, text: string, pin: string) =>
     request<Message>("POST", `/assignments/${assignmentId}/messages`, { text }, pin),
+  offerWage: (assignmentId: string, wage: number, pin: string) =>
+    request<AssignmentView>("POST", `/assignments/${assignmentId}/wage-offer`, { wage }, pin),
+  acceptWage: (assignmentId: string, pin: string) =>
+    request<AssignmentView>("POST", `/assignments/${assignmentId}/wage-offer/accept`, undefined, pin),
   plan: (taskId: string, text: string) =>
     request<AgentPlan>("POST", "/agent/plan", { task_id: taskId, request: text }),
 };

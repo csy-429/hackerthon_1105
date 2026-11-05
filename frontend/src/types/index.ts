@@ -28,6 +28,12 @@ export interface AssignmentView {
   status: AssignmentStatus;
   match_reasons: string[];
   override_reasons: string[];
+  agreed_wage: number | null;
+  offer_wage: number | null;
+  offer_by: "farmer" | "worker" | null;
+  message_count: number;
+  last_message_sender: "farmer" | "worker" | null;
+  last_message_at: string | null;
 }
 
 export interface Message {
@@ -35,6 +41,8 @@ export interface Message {
   assignment_id: string;
   sender: "farmer" | "worker";
   text: string;
+  kind: "text" | "wage_offer" | "wage_accept";
+  wage: number | null;
   created_at: string;
 }
 

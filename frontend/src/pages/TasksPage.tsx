@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, describeError } from "../lib/api";
 import { TASK_STATUS_LABEL, fmt, parseSkills, toInput, withSeconds } from "../lib/format";
 import { askPin } from "../lib/pin";
+import { taskInbox, useSeenTick } from "../lib/inbox";
 import type { Demo, Task } from "../types";
 
 interface Props {
@@ -25,6 +26,7 @@ interface Form {
 const EMPTY: Form = { title: "", description: "", start_at: "", end_at: "", required_workers: 1, skills: "", open_recruitment: false, hourly_wage: "", pin: "" };
 
 export function TasksPage({ demo, onChanged, onSelect }: Props) {
+  useSeenTick();
   const [form, setForm] = useState<Form>(EMPTY);
   const [editing, setEditing] = useState<Task | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,10 +105,14 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
       {demo.tasks.length === 0 && <p className="muted">등록된 작업이 없습니다.</p>}
       {demo.tasks.map((t) => {
         const locked = t.status === "cancelled" || t.status === "completed";
+        const inbox = taskInbox(t);
+        const applicants = t.assignments.filter((a) => a.status === "applied").length;
         return (
           <div className="card" key={t.id}>
             <div className="row">
               <strong className="grow">{t.title}{t.open_recruitment && <span className="badge"> 공개 모집</span>}</strong>
+              {applicants > 0 && <span className="badge new">지원자 {applicants}</span>}
+              {inbox.unread > 0 && <span className="badge new">새 메시지 {inbox.unread}</span>}
               <span className={`badge ${t.status}`}>{TASK_STATUS_LABEL[t.status]}</span>
             </div>
             <div className="muted">

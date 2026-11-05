@@ -97,6 +97,10 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 - `id`, `assignment_id`, `sender`(farmer|worker), `text`(1~500자, 연락처 형식 거부), `created_at`
 - 배치 1건당 최대 200개. 거절(`declined`)된 배치에는 보낼 수 없다.
+- `kind`가 `wage_offer`/`wage_accept`이면 시급 제안·합의 기록이며 `wage`를 가진다.
+- `Assignment`의 `offer_wage`/`offer_by`는 대기 중인 제안, `agreed_wage`는 합의 시급이다. 배치 응답에는 안 읽은 표시용 `message_count`, `last_message_sender`, `last_message_at`만 포함하고 메시지 내용은 넣지 않는다(읽음 여부는 클라이언트가 브라우저에 기록).
+- `POST /api/assignments/{id}/wage-offer`(양 당사자 PIN, 새 제안이 이전 제안을 대체), `POST /api/assignments/{id}/wage-offer/accept`(제안자의 상대 PIN만 가능, 본인 제안 수락은 409)
+- 공유 링크는 클라이언트 해시 경로 `#/jobs/{task_id}`이며 `GET /api/demo` 데이터로 그린다.
 
 ### 비밀번호(PIN)
 

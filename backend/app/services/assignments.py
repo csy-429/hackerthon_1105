@@ -13,15 +13,13 @@ from app.repositories.memory import InMemoryRepository
 from app.schemas.responses import AssignmentView, TaskView
 from app.services.auth import match_any, require_pin
 from app.services.matching import evaluate_candidate
-from app.services.tasks import build_task_view
+from app.services.tasks import build_assignment_view, build_task_view
 
 MAX_MESSAGES = 200
 
 
 def _view(repo: InMemoryRepository, assignment: Assignment) -> AssignmentView:
-    return AssignmentView(
-        **assignment.model_dump(), worker_name=repo.get_worker(assignment.worker_id).display_name
-    )
+    return build_assignment_view(repo, assignment)
 
 
 def list_assignments(
@@ -231,27 +229,70 @@ def list_messages(
         )
 
 
+def _append_message(
+    repo: InMemoryRepository,
+    assignment: Assignment,
+    sender: str,
+    text: str,
+    kind: str = "text",
+    wage: int | None = None,
+) -> Message:
+    if assignment.status == AssignmentStatus.DECLINED:
+        raise ConflictError("chat_closed", "거절·취소된 배치에서는 메시지를 보낼 수 없습니다")
+    if sum(1 for m in repo.messages.values() if m.assignment_id == assignment.id) >= MAX_MESSAGES:
+        raise ConflictError("chat_full", f"메시지는 최대 {MAX_MESSAGES}개까지 보낼 수 있습니다")
+    message = Message(
+        id=repo.new_id("msg"),
+        assignment_id=assignment.id,
+        sender=sender,
+        text=text,
+        kind=kind,
+        wage=wage,
+        created_at=datetime.now(),
+    )
+    repo.messages[message.id] = message
+    return message
+
+
 def send_message(
     repo: InMemoryRepository, assignment_id: str, pin: str | None, text: str
 ) -> Message:
     with repo.lock:
         assignment = repo.get_assignment(assignment_id)
         sender = _party(repo, assignment, pin)
-        if assignment.status == AssignmentStatus.DECLINED:
-            raise ConflictError("chat_closed", "거절·취소된 배치에서는 메시지를 보낼 수 없습니다")
-        if sum(1 for m in repo.messages.values() if m.assignment_id == assignment.id) >= (
-            MAX_MESSAGES
-        ):
-            raise ConflictError("chat_full", f"메시지는 최대 {MAX_MESSAGES}개까지 보낼 수 있습니다")
-        message = Message(
-            id=repo.new_id("msg"),
-            assignment_id=assignment.id,
-            sender=sender,
-            text=text,
-            created_at=datetime.now(),
+        return _append_message(repo, assignment, sender, text)
+
+
+def offer_wage(
+    repo: InMemoryRepository, assignment_id: str, pin: str | None, wage: int
+) -> AssignmentView:
+    """어느 쪽이든 시급을 제안할 수 있다. 새 제안은 이전 제안을 대체한다."""
+    with repo.lock:
+        assignment = repo.get_assignment(assignment_id)
+        sender = _party(repo, assignment, pin)
+        _append_message(repo, assignment, sender, f"시급 {wage:,}원을 제안했습니다", "wage_offer", wage)
+        assignment.offer_wage = wage
+        assignment.offer_by = sender
+        return _view(repo, assignment)
+
+
+def accept_wage(repo: InMemoryRepository, assignment_id: str, pin: str | None) -> AssignmentView:
+    """제안한 쪽의 상대만 수락할 수 있다. 수락하면 합의 시급으로 기록한다."""
+    with repo.lock:
+        assignment = repo.get_assignment(assignment_id)
+        sender = _party(repo, assignment, pin)
+        if assignment.offer_wage is None or assignment.offer_by is None:
+            raise ConflictError("no_offer", "수락할 시급 제안이 없습니다")
+        if assignment.offer_by == sender:
+            raise ConflictError("own_offer", "내가 한 제안은 상대방만 수락할 수 있습니다")
+        wage = assignment.offer_wage
+        _append_message(
+            repo, assignment, sender, f"시급 {wage:,}원에 합의했습니다", "wage_accept", wage
         )
-        repo.messages[message.id] = message
-        return message
+        assignment.agreed_wage = wage
+        assignment.offer_wage = None
+        assignment.offer_by = None
+        return _view(repo, assignment)
 
 
 def confirm_task(repo: InMemoryRepository, task_id: str, farmer_approved: bool) -> TaskView:

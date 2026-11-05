@@ -120,6 +120,10 @@ class Assignment(BaseModel):
     match_reasons: list[str] = Field(default_factory=list)
     # 조건이 맞지 않는데도 요청·지원한 경우, 당사자가 인지한 사유
     override_reasons: list[str] = Field(default_factory=list)
+    # 채팅에서 양측이 합의한 시급과, 상대의 수락을 기다리는 제안
+    agreed_wage: int | None = None
+    offer_wage: int | None = None
+    offer_by: str | None = None  # "farmer" | "worker"
     created_at: datetime
 
 
@@ -128,4 +132,6 @@ class Message(BaseModel):
     assignment_id: str
     sender: str  # "farmer" | "worker"
     text: str
+    kind: str = "text"  # "text" | "wage_offer" | "wage_accept"
+    wage: int | None = None
     created_at: datetime

@@ -47,6 +47,10 @@ class SuggestionResult(BaseModel):
 
 class AssignmentView(Assignment):
     worker_name: str
+    # 안 읽은 메시지 표시용 메타데이터(내용은 포함하지 않는다)
+    message_count: int = 0
+    last_message_sender: str | None = None
+    last_message_at: datetime | None = None
 
 
 class TaskView(Task):
