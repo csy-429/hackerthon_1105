@@ -32,7 +32,7 @@ def create_app(
     app = FastAPI(title="일손잇다 API", version="0.1.0")
     app.state.repo = repo or InMemoryRepository()
     app.state.planner = planner if planner is not None else create_default_planner()
-    app.state.agent_limiter = SlidingWindowLimiter(limit=6, window_seconds=60)
+    app.state.agent_limiter = SlidingWindowLimiter(limit=60, window_seconds=60)
     state_path = state_file if state_file is not None else (
         default_state_file() if repo is None else None
     )

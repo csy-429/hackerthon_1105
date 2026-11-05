@@ -25,7 +25,7 @@ cd frontend; npm install; npm run build; cd ..
 데이터는 기본적으로 서버 메모리에 보관하며, `STATE_FILE`이 설정된 실행 환경에서는 변경 사항을 버전이 있는 JSON 파일에 저장합니다(PIN 해시 포함). 파일이 없으면 데모 데이터가 로드되어 저장 파일이 생성됩니다. Azure App Service의 기본 경로는 `/home/data/ilsonitda-state.json`이며, 로컬에서 `STATE_FILE`을 지정하지 않으면 재시작 시 데이터가 초기화됩니다.
 AI 배치 설명은 Microsoft Agent Framework의 GitHub Copilot provider를 사용합니다. 서버가 계산한 후보·일정 결과를 읽기 전용 도구로 제공하며, AI는 요약만 만듭니다. 후보 적격성 판정과 배치 확정은 계속 서버와 사용자가 담당합니다.
 
-로컬에서는 인증된 Copilot CLI를 사용합니다. 먼저 `copilot login`으로 로그인한 뒤 앱을 실행하세요. Azure App Service에서는 CLI 로그인 상태가 공유되지 않으므로 앱 설정에 `COPILOT_GITHUB_TOKEN`을 비밀 값으로 등록해야 합니다. 토큰은 프론트엔드, 저장소, 채팅에 넣지 마세요. AI 설명 API는 프로세스 내 클라이언트별 분당 6회로 제한되며 초과 시 429를 반환합니다. 설정이 없으면 `POST /api/agent/plan`은 성공을 가장하지 않고 503을 반환합니다. 토큰 발급은 GitHub의 [Copilot CLI 인증 안내](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)를 참고하세요.
+로컬에서는 인증된 Copilot CLI를 사용합니다. 먼저 `copilot login`으로 로그인한 뒤 앱을 실행하세요. Azure App Service에서는 CLI 로그인 상태가 공유되지 않으므로 앱 설정에 `COPILOT_GITHUB_TOKEN`을 비밀 값으로 등록해야 합니다. 토큰은 프론트엔드, 저장소, 채팅에 넣지 마세요. AI 설명 API는 프로세스 내 클라이언트별 분당 60회로 제한되며 초과 시 429를 반환합니다. 설정이 없으면 `POST /api/agent/plan`은 성공을 가장하지 않고 503을 반환합니다. 토큰 발급은 GitHub의 [Copilot CLI 인증 안내](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)를 참고하세요.
 
 첫 화면에서 "농장주" 또는 "일손" 역할을 고릅니다. 이는 로그인이 아닌 화면 분기이며, 서버는 역할을 구분하지 않으므로 실제 서비스에는 인증·권한 검사가 필요합니다. 첫 화면의 "사용 방법 보기"에서 농장주·일손별 사용 순서를 일러스트와 함께 볼 수 있습니다.
 
