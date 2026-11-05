@@ -15,7 +15,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 @router.post("/plan", response_model=AgentPlanResponse)
-def plan(
+async def plan(
     payload: AgentPlanRequest,
     repo: InMemoryRepository = Depends(get_repository),
     planner: AgentPlanner = Depends(get_planner),
@@ -25,7 +25,7 @@ def plan(
         suggestions = suggest_for_task(repo, task.id)
 
     try:
-        result = planner.plan(task, suggestions, payload.request)
+        result = await planner.plan(task, suggestions, payload.request)
     except AgentUnavailableError as exc:
         raise DomainError(
             503,

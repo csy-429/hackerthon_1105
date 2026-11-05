@@ -1,12 +1,16 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agent.planner import UnconfiguredPlanner
 from app.main import create_app
 
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(create_app(serve_frontend=False), headers={"X-Pin": "1234"})
+    return TestClient(
+        create_app(planner=UnconfiguredPlanner(), serve_frontend=False),
+        headers={"X-Pin": "1234"},
+    )
 
 
 def _ids(candidates, eligible):

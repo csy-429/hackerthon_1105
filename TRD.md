@@ -11,7 +11,7 @@
 - Agent orchestration: Microsoft Agent Framework
 - Model/runtime integration: GitHub Copilot SDK를 사용하는 Agent Framework GitHub Copilot provider
 - 초기 저장소: SQLite 또는 데모용 저장소 추상화
-- 배포: Azure Container Apps의 기본 도메인
+- 배포: Azure App Service Linux (현재 공개 데모는 F1 요금제)
 - 테스트: pytest, HTTPX, Playwright
 
 Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-framework-github-copilot`을 제공한다. 프로젝트 설정 시 공식 문서와 패키지 버전을 다시 확인한다.
@@ -41,13 +41,9 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 ### Agent workflow
 
-1. 요청과 앱 컨텍스트를 확인한다.
-2. 작업 등록 또는 작업 조회 도구를 호출한다.
-3. 결정적 일정 매칭 도구를 호출한다.
-4. 구조화된 후보와 매칭 근거를 사용자 친화적으로 요약한다.
-5. 일정 확정 같은 상태 변경은 사용자 승인 이후 별도 API로 처리한다.
+`POST /api/agent/plan`은 먼저 서버의 결정적 매칭 함수를 실행하고, 확정된 작업·후보·경고·제외 사유를 읽기 전용 `get_verified_matching_result` 도구로 Agent Framework GitHub Copilot 에이전트에 제공한다. 에이전트는 한국어 설명 초안만 반환한다. 일정 확정이나 후보 판정 권한은 갖지 않으며, 최종 응답의 구조화된 후보 정보는 서버의 매칭 결과 그대로다. AI 응답에서 빈 설명이나 잘못된 후보 참조가 발견되면 오류로 처리한다.
 
-모델이 직접 임의의 작업자나 일정을 만들어내지 않도록, 후보 목록과 확정 가능 여부는 도구 결과만 사용한다.
+로컬 개발은 로그인된 Copilot CLI를 사용한다. Azure에서는 `COPILOT_GITHUB_TOKEN`을 App Service 애플리케이션 설정(비밀 값)으로 제공해야 한다. 배포 환경에 토큰이 없으면 에이전트를 비활성화하고 API는 재시도 가능한 503을 반환한다. 토큰을 브라우저나 저장소에 노출하지 않는다.
 
 ## 3. 데이터 모델
 
@@ -177,12 +173,13 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 ## 6. Azure 배포와 운영
 
-- 웹 앱과 API를 하나의 컨테이너로 배포해 해커톤 MVP의 운영 구성을 단순화한다.
-- Azure Container Apps 기본 도메인을 사용한다.
-- `/health`를 컨테이너 상태 점검 경로로 제공한다.
+- 현재 데모는 Azure App Service Linux에 프론트엔드 빌드 결과와 FastAPI를 함께 배포한다. 공개 기본 도메인에서 로그인 없이 접속할 수 있다.
+- `requirements.txt`는 App Service 원격 빌드의 Python 의존성 목록이다. `Dockerfile`은 컨테이너 배포용 대안이며 현재 App Service 배포 경로에는 사용되지 않는다.
+- `/health`를 상태 점검 경로로 제공한다.
 - 로그에는 요청 ID, 처리 단계, 오류 유형을 기록하되 개인정보나 프롬프트의 민감한 내용은 남기지 않는다.
-- 비밀 설정은 Azure Container Apps secrets 또는 이에 준하는 안전한 환경 설정에 둔다.
-- 컨테이너 재시작 시 데모 데이터를 다시 초기화할 수 있도록 한다.
+- 비밀 설정은 App Service의 애플리케이션 설정에 둔다. `COPILOT_GITHUB_TOKEN` 값은 마스킹된 비밀로 관리하고 배포 산출물이나 Git에 포함하지 않는다.
+- F1 요금제의 사용량·자원 한도와 Copilot 사용 권한/요금은 공개 데모 전 확인한다.
+- 프로세스 재시작 시 데모 데이터를 다시 초기화할 수 있도록 한다.
 - MVP 저장소의 영속성 한계와 데모 초기화 방법을 화면 또는 문서에 명시한다.
 
 ## 7. 보안 및 신뢰
@@ -198,7 +195,7 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 ## 8. 주요 기술 리스크
 
-- GitHub Copilot SDK 기반 에이전트가 Azure Container Apps 런타임에서 인증·실행 가능한지 조기에 검증한다. 로컬 개발자 인증이 배포 환경에 자동으로 적용된다고 가정하지 않는다.
+- GitHub Copilot SDK 기반 에이전트가 Azure App Service 런타임에서 인증·실행 가능한지 배포 후 검증한다. 로컬 개발자 인증이 배포 환경에 자동으로 적용된다고 가정하지 않는다.
 - Agent Framework와 Copilot provider의 버전 및 API 변경에 대비해 의존성 버전을 고정한다.
 - 모델 응답은 스키마 검증 후에만 UI에 전달한다.
 - AI 호출이 실패해도 결정적 후보 필터링과 충돌 검사는 동작하도록 분리한다.

@@ -8,6 +8,8 @@ version = "0.1.0"
 description = "일손잇다 — 농작업 일정·일손 배치 조율 앱"
 requires-python = ">=3.11"
 dependencies = [
+  "agent-framework-github-copilot==2.1.1",
+  "github-copilot-sdk==1.0.28",
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1",
 ]

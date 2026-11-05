@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.agent.planner import AgentPlanner, UnconfiguredPlanner
+from app.agent.planner import AgentPlanner, create_default_planner
 from app.api.router import api_router
 from app.errors import DomainError
 from app.repositories.memory import InMemoryRepository
@@ -25,7 +25,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="일손잇다 API", version="0.1.0")
     app.state.repo = repo or InMemoryRepository()
-    app.state.planner = planner or UnconfiguredPlanner()
+    app.state.planner = planner if planner is not None else create_default_planner()
     load_demo(app.state.repo)
 
     @app.exception_handler(DomainError)
