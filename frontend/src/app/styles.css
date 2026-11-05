@@ -32,3 +32,11 @@ progress { width: 120px; }
 .role-card:hover { border-color: #2f6b3f; }
 .role-card h3 { margin: 0 0 8px; }
 .role-card p { margin: 0; color: #4b5563; }
+.guide-tabs { margin: 12px 0; }
+.steps { list-style: none; padding: 0; margin: 0 0 12px; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.step p { margin: 4px 0 8px; color: #374151; }
+.step-no { flex: none; width: 28px; height: 28px; border-radius: 50%; background: #2f6b3f; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.illust { flex: none; width: 72px; height: 72px; background: #f0f7f1; border-radius: 12px; padding: 4px; }
+@media (max-width: 520px) { .illust { width: 52px; height: 52px; } }
+.rules { background: #f0f7f1; border-color: #b7d3bc; }

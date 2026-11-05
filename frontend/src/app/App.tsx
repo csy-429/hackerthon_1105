@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import type { Demo } from "../types";
 import { HomePage } from "../pages/HomePage";
+import { GuidePage } from "../pages/GuidePage";
 import { TaskDetailPage } from "../pages/TaskDetailPage";
 import { TasksPage } from "../pages/TasksPage";
 import { WorkersPage } from "../pages/WorkersPage";
@@ -28,6 +29,7 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [guide, setGuide] = useState(false);
 
   const setRole = (next: Role | null) => {
     setRoleState(next);
@@ -65,7 +67,7 @@ export function App() {
   return (
     <>
       <header>
-        <h1 style={{ cursor: "pointer" }} onClick={() => setRole(null)}>일손잇다</h1>
+        <h1 style={{ cursor: "pointer" }} onClick={() => { setRole(null); setGuide(false); }}>일손잇다</h1>
         {role === "farmer" && (
           <nav>
             <button className={tab === "tasks" ? "active" : ""} onClick={() => { setTab("tasks"); setSelected(null); }}>
@@ -91,7 +93,16 @@ export function App() {
             {error} <button onClick={() => void refresh()}>다시 시도</button>
           </div>
         )}
-        {!role && <HomePage onSelect={setRole} />}
+        {!role && !guide && <HomePage onSelect={setRole} onGuide={() => setGuide(true)} />}
+        {!role && guide && (
+          <GuidePage
+            onBack={() => setGuide(false)}
+            onStart={(r) => {
+              setGuide(false);
+              setRole(r);
+            }}
+          />
+        )}
         {demo && role === "farmer" && tab === "tasks" && !task && (
           <TasksPage demo={demo} onChanged={refresh} onSelect={setSelected} />
         )}
