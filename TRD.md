@@ -32,6 +32,9 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - AI 처리 중 상태와 실패 메시지 표시
 - 전역 시각 스타일과 반응형 규칙은 `frontend/src/app/styles.css`가 관리하며, 구현 토큰과 컴포넌트 기준은 [DESIGN.md](./DESIGN.md)에 기록한다.
 - `pretendard` 패키지에서 Pretendard Variable 폰트를 제공한다. CSS는 최소 44px 조작 영역, 키보드 포커스, reduced-motion 환경을 지원한다.
+- 작업 취소·조건 불일치 요청 확인은 브라우저 기본 `confirm()` 대신 앱 내부 확인 모달(`askConfirm`)을 사용한다.
+- 배치 요청·공개 모집 지원·시급 제안 API 성공 후 완료 모달을 표시한다. 일반 채팅 메시지 전송에는 완료 모달을 띄우지 않는다.
+- AI 대기 UI는 4초 전후부터 설명 작성 중, 15초 이후에는 지연 안내를 표시한다(화면 문구상 최대 약 1분). 서버의 에이전트 실행 timeout은 90초다. 프론트엔드는 502 `agent_failed`만 한 번 자동 재시도하며, 429 제한 초과와 503 에이전트 사용 불가 응답은 자동 재시도하지 않고 오류를 표시한다.
 
 ### Backend API
 
@@ -45,7 +48,11 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 `POST /api/agent/plan`은 먼저 서버의 결정적 매칭 함수를 실행하고, 확정된 작업·후보·경고·제외 사유를 읽기 전용 `get_verified_matching_result` 도구로 Agent Framework GitHub Copilot 에이전트에 제공한다. 에이전트는 한국어 설명 초안만 반환한다. 일정 확정이나 후보 판정 권한은 갖지 않으며, 최종 응답의 구조화된 후보 정보는 서버의 매칭 결과 그대로다. AI 응답에서 빈 설명이나 잘못된 후보 참조가 발견되면 오류로 처리한다.
 
-로컬 개발은 로그인된 Copilot CLI를 사용한다. Azure에서는 `COPILOT_GITHUB_TOKEN`을 App Service 애플리케이션 설정(비밀 값)으로 제공해야 한다. 배포 환경에 토큰이 없으면 에이전트를 비활성화하고 API는 재시도 가능한 503을 반환한다. 토큰을 브라우저나 저장소에 노출하지 않는다.
+로컬 개발은 로그인된 Copilot CLI를 사용한다. Azure에서는 `COPILOT_GITHUB_TOKEN`을 App Service 애플리케이션 설정(비밀 값)으로 제공해야 한다. 배포 환경에 토큰이 없으면 에이전트를 비활성화하고 API는 재시도 가능한 503을 반환한다. AI 계획 요청은 프로세스 내 클라이언트별 sliding-window 제한(60초당 6회)을 적용하며 초과하면 429 `rate_limited`와 재시도 대기 초를 반환한다. 제한 카운터는 프로세스 메모리에만 있어 재시작 시 초기화된다. 토큰을 브라우저나 저장소에 노출하지 않는다.
+
+### 저장 및 영속성
+
+도메인 저장소는 메모리 기반이다. `STATE_FILE`이 설정되면 변경 요청 후 전체 데이터와 PIN salt/hash를 버전이 있는 JSON 파일에 원자적으로 저장하고, 시작 시 파일을 읽어 복원한다. 파일이 없거나 지원하지 않는 버전이면 데모 데이터를 불러온다. Azure App Service 기본 경로는 `/home/data/ilsonitda-state.json`이고, 로컬은 `STATE_FILE`을 지정하지 않으면 파일 저장 없이 재시작 시 데모 상태로 돌아간다. PIN 실패 잠금 카운터도 파일에 저장된다.
 
 ## 3. 데이터 모델
 
@@ -98,14 +105,14 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `kind`가 `wage_offer`/`wage_accept`이면 시급 제안·합의 기록이며 `wage`를 가진다.
 - `Assignment`의 `offer_wage`/`offer_by`는 대기 중인 제안, `agreed_wage`는 합의 시급이다. 배치 응답에는 안 읽은 표시용 `message_count`, `last_message_sender`, `last_message_at`만 포함하고 메시지 내용은 넣지 않는다(읽음 여부는 클라이언트가 브라우저에 기록).
 - `POST /api/assignments/{id}/wage-offer`(양 당사자 PIN, 새 제안이 이전 제안을 대체), `POST /api/assignments/{id}/wage-offer/accept`(제안자의 상대 PIN만 가능, 본인 제안 수락은 409)
-- 완료 모달은 프론트엔드 전용(`lib/pin.tsx`의 `notifyDone`)이며, 요청 API가 성공한 뒤에만 호출한다. 서버 변경은 없다.
 - 공유 링크는 클라이언트 해시 경로 `#/jobs/{task_id}`이며 `GET /api/demo` 데이터로 그린다.
 
 ### 비밀번호(PIN)
 
 - 작업과 일손을 만들 때 숫자 4자리 `pin`을 받는다(`^\d{4}$`). 도메인 모델과 응답에는 포함하지 않고 별도 저장소(`pins`)에 PBKDF2-SHA256 + 솔트 해시로만 둔다.
 - 이후 보호된 요청은 `X-Pin` 헤더로 보낸다. 없으면 401 `pin_required`, 틀리면 403 `invalid_pin`, 5회 연속 실패 시 5분간 429 `pin_locked`. 비교는 상수 시간 비교를 쓴다.
-- 한계: 조합이 1만 개라 무차별 대입에 약하고(잠금으로만 완화), 분실 복구와 신원 확인이 없다. 서버 메모리 저장이라 재시작 시 사라진다.
+- 영속성: 기본 저장소에서는 메모리에만 존재하며 프로세스 재시작 시 사라진다. `STATE_FILE`이 설정된 환경에서는 JSON 저장 파일에 PIN salt/hash와 잠금 정보도 함께 보존된다.
+- 한계: 조합이 1만 개라 무차별 대입에 약하고(잠금으로만 완화), 분실 복구와 신원 확인이 없다.
 
 | 요청 | 필요한 PIN |
 |---|---|

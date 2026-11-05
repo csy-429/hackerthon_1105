@@ -22,10 +22,10 @@ cd frontend; npm install; npm run build; cd ..
 ```
 
 개발 중 프론트엔드는 `cd frontend; npm run dev`(`/api`는 8000 포트로 프록시)로 실행합니다.
-데이터는 서버 메모리에 두고 변경될 때마다 JSON 파일에 저장합니다. 파일이 없으면 데모 데이터가 자동으로 로드됩니다. 저장 위치는 `STATE_FILE` 환경 변수이고, Azure App Service에서는 기본값 `/home/data/ilsonitda-state.json`입니다. 로컬에서 `STATE_FILE`을 지정하지 않으면 저장하지 않습니다.
+데이터는 기본적으로 서버 메모리에 보관하며, `STATE_FILE`이 설정된 실행 환경에서는 변경 사항을 버전이 있는 JSON 파일에 저장합니다(PIN 해시 포함). 파일이 없으면 데모 데이터가 로드되어 저장 파일이 생성됩니다. Azure App Service의 기본 경로는 `/home/data/ilsonitda-state.json`이며, 로컬에서 `STATE_FILE`을 지정하지 않으면 재시작 시 데이터가 초기화됩니다.
 AI 배치 설명은 Microsoft Agent Framework의 GitHub Copilot provider를 사용합니다. 서버가 계산한 후보·일정 결과를 읽기 전용 도구로 제공하며, AI는 요약만 만듭니다. 후보 적격성 판정과 배치 확정은 계속 서버와 사용자가 담당합니다.
 
-로컬에서는 인증된 Copilot CLI를 사용합니다. 먼저 `copilot login`으로 로그인한 뒤 앱을 실행하세요. Azure App Service에서는 CLI 로그인 상태가 공유되지 않으므로 앱 설정에 `COPILOT_GITHUB_TOKEN`을 비밀 값으로 등록해야 합니다. 토큰은 프론트엔드, 저장소, 채팅에 넣지 마세요. 설정이 없으면 `POST /api/agent/plan`은 성공을 가장하지 않고 503을 반환합니다. 토큰 발급은 GitHub의 [Copilot CLI 인증 안내](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)를 참고하세요.
+로컬에서는 인증된 Copilot CLI를 사용합니다. 먼저 `copilot login`으로 로그인한 뒤 앱을 실행하세요. Azure App Service에서는 CLI 로그인 상태가 공유되지 않으므로 앱 설정에 `COPILOT_GITHUB_TOKEN`을 비밀 값으로 등록해야 합니다. 토큰은 프론트엔드, 저장소, 채팅에 넣지 마세요. AI 설명 API는 프로세스 내 클라이언트별 분당 6회로 제한되며 초과 시 429를 반환합니다. 설정이 없으면 `POST /api/agent/plan`은 성공을 가장하지 않고 503을 반환합니다. 토큰 발급은 GitHub의 [Copilot CLI 인증 안내](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)를 참고하세요.
 
 첫 화면에서 "농장주" 또는 "일손" 역할을 고릅니다. 이는 로그인이 아닌 화면 분기이며, 서버는 역할을 구분하지 않으므로 실제 서비스에는 인증·권한 검사가 필요합니다. 첫 화면의 "사용 방법 보기"에서 농장주·일손별 사용 순서를 일러스트와 함께 볼 수 있습니다.
 
@@ -46,7 +46,7 @@ frontend/
     components/                  # 공통 UI
     lib/                         # API 클라이언트와 공통 함수
     types/                       # 프론트엔드 타입
-  tests/                         # Playwright E2E 테스트
+  tests/                         # E2E 테스트용 디렉터리(자동화 테스트는 아직 없음)
 backend/
   app/
     api/routes/                  # FastAPI 라우트
@@ -64,3 +64,5 @@ infra/                           # Azure 배포 설정
 프론트엔드 시각 기준은 `DESIGN.md`와 `frontend/src/app/styles.css`를 함께 참고합니다. 전역 스타일은 Pretendard Variable, 종이색·농지 초록 팔레트, 최소 44px 조작 영역, 키보드 포커스 및 reduced-motion 처리를 제공합니다.
 
 매칭·충돌 판정과 배정 확정 검증은 백엔드의 결정적 업무 규칙으로 유지하며, 에이전트는 검증된 결과를 설명하는 역할만 담당합니다. 각 디렉터리의 `.gitkeep`은 구현 파일이 추가되기 전까지 구조를 Git에 보존합니다.
+
+현재 프론트엔드에는 Playwright 의존성·실행 스크립트·자동화 E2E 테스트가 없습니다. [TDD.md](./TDD.md)의 E2E 흐름은 구현을 위한 시나리오이며, 자동화된 출시 검증으로 오인하지 않도록 수동 확인 항목과 구분합니다.
