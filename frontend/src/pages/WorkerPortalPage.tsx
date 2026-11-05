@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
-import { askPin, notifyDone } from "../lib/pin";
+import { askConfirm, askPin, notifyDone } from "../lib/pin";
 import { isUnread, workerInbox, useSeenTick } from "../lib/inbox";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt, parseSkills, withSeconds } from "../lib/format";
 import type { AssignmentView, Demo, Opportunity, TimeWindow } from "../types";
@@ -272,8 +272,8 @@ export function WorkerPortalPage({ demo, workerId, onWorkerChange, focusTaskId, 
             ) : o.evaluation.requestable ? (
               <button
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm("조건이 맞지 않지만 지원합니다. 농장주가 협의 후 선택할 수 있습니다. 계속할까요?")) void applyTo(o.task.id, true);
+                onClick={async () => {
+                  if (await askConfirm("조건이 맞지 않지만 지원합니다. 농장주가 협의 후 선택할 수 있습니다. 계속할까요?")) void applyTo(o.task.id, true);
                 }}
               >
                 조건이 달라도 지원하기

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, describeError } from "../lib/api";
 import { TASK_STATUS_LABEL, fmt, parseSkills, toInput, withSeconds } from "../lib/format";
-import { askPin } from "../lib/pin";
+import { askConfirm, askPin } from "../lib/pin";
 import { taskInbox, useSeenTick } from "../lib/inbox";
 import type { Demo, Task } from "../types";
 
@@ -86,7 +86,7 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
   };
 
   const cancel = async (t: Task) => {
-    if (!window.confirm(`'${t.title}' 작업을 취소할까요?`)) return;
+    if (!(await askConfirm(`'${t.title}' 작업을 취소할까요?`))) return;
     setError(null);
     const pin = await askPin("작업 취소를 위해 비밀번호 4자리를 입력하세요.");
     if (!pin) return;

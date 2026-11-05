@@ -3,7 +3,7 @@ import { ApiError, api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
 import { ShareLink } from "../components/ShareLink";
 import { isUnread, useSeenTick } from "../lib/inbox";
-import { askPin, notifyDone } from "../lib/pin";
+import { askConfirm, askPin, notifyDone } from "../lib/pin";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt } from "../lib/format";
 import type { AgentPlan, Candidate, Demo, Suggestions, Task } from "../types";
 
@@ -90,13 +90,13 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
     setPicked((p) => (p.includes(c.candidate_id) ? p.filter((x) => x !== c.candidate_id) : [...p, c.candidate_id]));
   const PIN_PROMPT = "작업 등록 때 정한 비밀번호 4자리를 입력하세요.";
 
-  const requestPicked = () => {
+  const requestPicked = async () => {
     const forced = (sug?.candidates ?? []).filter((c) => picked.includes(c.candidate_id) && !c.eligible);
     if (forced.length > 0) {
       const lines = forced.map((c) => `- ${c.display_name}: ${c.exclusions.join(", ")}`).join("\n");
-      if (!window.confirm(`조건이 맞지 않는 일손에게도 요청합니다. 일손이 협의 후 수락할 수 있습니다.\n${lines}`)) return;
+      if (!(await askConfirm(`조건이 맞지 않는 일손에게도 요청합니다. 일손이 협의 후 수락할 수 있습니다.\n${lines}`))) return;
     }
-    void run(
+    await run(
       (pin) =>
         api.requestConfirmation(task.id, picked, pin, forced.map((c) => c.candidate_id)),
       PIN_PROMPT,
