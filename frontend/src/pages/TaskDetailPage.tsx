@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, describeError } from "../lib/api";
+import { ApiError, api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
 import { ShareLink } from "../components/ShareLink";
 import { isUnread, useSeenTick } from "../lib/inbox";
@@ -28,6 +28,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [ai, setAi] = useState<AiState>({ phase: "idle" });
+  const [aiSecs, setAiSecs] = useState(0);
 
   const loadSuggestions = useCallback(async () => {
     try {
@@ -60,12 +61,27 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
 
   const askAi = async () => {
     setAi({ phase: "loading" });
+    setAiSecs(0);
+    const timer = window.setInterval(() => setAiSecs((s) => s + 1), 1000);
+    const text = "이 작업의 후보 배치를 설명해 주세요";
     try {
-      setAi({ phase: "done", plan: await api.plan(task.id, "이 작업의 후보 배치를 설명해 주세요") });
+      let plan: AgentPlan;
+      try {
+        plan = await api.plan(task.id, text);
+      } catch (e) {
+        // 일시적인 AI 처리 오류(502)만 한 번 자동 재시도한다
+        if (!(e instanceof ApiError && e.status === 502)) throw e;
+        plan = await api.plan(task.id, text);
+      }
+      setAi({ phase: "done", plan });
     } catch (e) {
       setAi({ phase: "error", message: describeError(e) });
+    } finally {
+      window.clearInterval(timer);
     }
   };
+  const aiStep =
+    aiSecs < 4 ? "매칭 결과를 읽는 중…" : aiSecs < 15 ? "AI가 후보별 설명을 작성하는 중…" : "응답이 조금 늦어지고 있어요. 최대 1분 정도 걸릴 수 있습니다…";
 
   const open = task.status === "draft" || task.status === "proposed";
   const slots = task.required_workers - task.active_count;
@@ -218,7 +234,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
         <button disabled={ai.phase === "loading"} onClick={() => void askAi()}>
           {ai.phase === "error" ? "다시 시도" : "AI에게 배치 설명 요청"}
         </button>
-        {ai.phase === "loading" && <div className="info">AI가 배치안을 분석하는 중입니다…</div>}
+        {ai.phase === "loading" && <div className="info">{aiStep} ({aiSecs}초)</div>}
         {ai.phase === "error" && <div className="error">{ai.message}</div>}
         {ai.phase === "done" && (
           <div className="info">

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.agent.planner import AgentPlanner, AgentUnavailableError
 from app.api.deps import get_planner, get_repository
+from app.api.ratelimit import agent_rate_limit
 from app.errors import DomainError
 from app.repositories.memory import InMemoryRepository
 from app.schemas.requests import AgentPlanRequest
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
-@router.post("/plan", response_model=AgentPlanResponse)
+@router.post("/plan", response_model=AgentPlanResponse, dependencies=[Depends(agent_rate_limit)])
 async def plan(
     payload: AgentPlanRequest,
     repo: InMemoryRepository = Depends(get_repository),
