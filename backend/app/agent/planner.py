@@ -136,6 +136,8 @@ class CopilotAgentPlanner:
 
 
 def create_default_planner() -> AgentPlanner:
+    if os.getenv("AI_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return UnconfiguredPlanner()
     if os.getenv("COPILOT_GITHUB_TOKEN"):
         return CopilotAgentPlanner()
     if not os.getenv("WEBSITE_SITE_NAME") and shutil.which("copilot"):

@@ -76,8 +76,16 @@ def test_planner_requires_server_token_for_azure(monkeypatch):
 def test_planner_enables_copilot_with_server_token(monkeypatch):
     monkeypatch.setenv("WEBSITE_SITE_NAME", "public-demo")
     monkeypatch.setenv("COPILOT_GITHUB_TOKEN", "test-token")
+    monkeypatch.setenv("AI_ENABLED", "true")
 
     assert isinstance(create_default_planner(), CopilotAgentPlanner)
+
+
+def test_planner_disabled_by_default(monkeypatch):
+    monkeypatch.setenv("COPILOT_GITHUB_TOKEN", "test-token")
+    monkeypatch.delenv("AI_ENABLED", raising=False)
+
+    assert isinstance(create_default_planner(), UnconfiguredPlanner)
 
 
 def test_only_verified_read_only_tool_is_auto_approved():
