@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
-import { askPin } from "../lib/pin";
+import { askPin, notifyDone } from "../lib/pin";
 import { isUnread, workerInbox, useSeenTick } from "../lib/inbox";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt, parseSkills, withSeconds } from "../lib/format";
 import type { AssignmentView, Demo, Opportunity, TimeWindow } from "../types";
@@ -98,6 +98,7 @@ export function WorkerPortalPage({ demo, workerId, onWorkerChange, focusTaskId, 
       await onChanged();
       await loadAssignments();
       await loadOpps();
+      notifyDone("지원이 완료되었습니다", "농장주가 선택하면 '받은 배치 요청'에 수락 상태로 표시됩니다. 조건이나 시급은 그곳의 채팅으로 협의할 수 있습니다.");
     } catch (e) {
       setError(describeError(e));
     } finally {

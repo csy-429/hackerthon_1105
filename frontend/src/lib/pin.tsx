@@ -4,6 +4,12 @@ type Resolver = (pin: string | null) => void;
 let open: ((message: string, resolve: Resolver) => void) | null = null;
 // 같은 세션에서 직전에 입력한 비밀번호를 미리 채워 Enter 한 번으로 확인한다
 let lastPin = "";
+let notifyOpen: ((title: string, message: string) => void) | null = null;
+
+/** 요청이 서버에 정상 전달된 뒤 완료 모달을 띄운다. */
+export function notifyDone(title: string, message: string): void {
+  notifyOpen?.(title, message);
+}
 
 /** 비밀번호 4자리를 묻는 모달을 띄우고, 취소하면 null을 돌려준다. */
 export function askPin(message: string): Promise<string | null> {
@@ -16,16 +22,33 @@ export function askPin(message: string): Promise<string | null> {
 export function PinDialog() {
   const [state, setState] = useState<{ message: string; resolve: Resolver } | null>(null);
   const [value, setValue] = useState("");
+  const [done, setDone] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     open = (message, resolve) => {
       setValue(lastPin);
       setState({ message, resolve });
     };
+    notifyOpen = (title, message) => setDone({ title, message });
     return () => {
       open = null;
+      notifyOpen = null;
     };
   }, []);
+
+  if (done) {
+    return (
+      <div className="modal-backdrop" onClick={() => setDone(null)}>
+        <div className="modal card" role="dialog" aria-live="polite" onClick={(e) => e.stopPropagation()}>
+          <h3>✅ {done.title}</h3>
+          <p>{done.message}</p>
+          <div className="row">
+            <button className="primary" autoFocus onClick={() => setDone(null)}>확인</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!state) return null;
   const close = (pin: string | null) => {

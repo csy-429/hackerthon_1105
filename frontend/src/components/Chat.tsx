@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, describeError } from "../lib/api";
 import { markSeen } from "../lib/inbox";
-import { askPin } from "../lib/pin";
+import { askPin, notifyDone } from "../lib/pin";
 import type { AssignmentView, Message } from "../types";
 
 interface Props {
@@ -80,7 +80,10 @@ export function Chat({ assignment, me, onChanged }: Props) {
     e.preventDefault();
     const wage = Number(offer);
     if (!wage) return;
-    if (await run((p) => api.offerWage(assignmentId, wage, p))) setOffer("");
+    if (await run((p) => api.offerWage(assignmentId, wage, p))) {
+      setOffer("");
+      notifyDone("시급 제안을 보냈습니다", `${wage.toLocaleString()}원을 제안했습니다. 상대방이 수락하면 합의 시급으로 기록됩니다.`);
+    }
   };
 
   const incomingOffer = assignment.offer_wage !== null && assignment.offer_by !== null && assignment.offer_by !== me;

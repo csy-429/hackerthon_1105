@@ -3,7 +3,7 @@ import { ApiError, api, describeError } from "../lib/api";
 import { Chat } from "../components/Chat";
 import { ShareLink } from "../components/ShareLink";
 import { isUnread, useSeenTick } from "../lib/inbox";
-import { askPin } from "../lib/pin";
+import { askPin, notifyDone } from "../lib/pin";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt } from "../lib/format";
 import type { AgentPlan, Candidate, Demo, Suggestions, Task } from "../types";
 
@@ -43,7 +43,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
     void loadSuggestions();
   }, [loadSuggestions, task.status, task.assignments.length]);
 
-  const run = async (fn: (pin: string) => Promise<unknown>, prompt: string) => {
+  const run = async (fn: (pin: string) => Promise<unknown>, prompt: string, onSuccess?: () => void) => {
     const pin = await askPin(prompt);
     if (!pin) return;
     setBusy(true);
@@ -52,6 +52,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
       await fn(pin);
       await onChanged();
       await loadSuggestions();
+      onSuccess?.();
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -99,6 +100,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
       (pin) =>
         api.requestConfirmation(task.id, picked, pin, forced.map((c) => c.candidate_id)),
       PIN_PROMPT,
+      () => notifyDone("협의 요청을 보냈습니다", `선택한 일손 ${picked.length}명에게 배치를 요청했습니다. 일손이 수락하거나 채팅으로 협의하면 이 화면에 표시됩니다.`),
     );
   };
 
