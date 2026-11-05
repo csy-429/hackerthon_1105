@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, describeError } from "../lib/api";
 import { TASK_STATUS_LABEL, fmt, parseSkills, toInput, withSeconds } from "../lib/format";
+import { askPin } from "../lib/pin";
 import type { Demo, Task } from "../types";
 
 interface Props {
@@ -17,9 +18,11 @@ interface Form {
   required_workers: number;
   skills: string;
   open_recruitment: boolean;
+  hourly_wage: string;
+  pin: string;
 }
 
-const EMPTY: Form = { title: "", description: "", start_at: "", end_at: "", required_workers: 1, skills: "", open_recruitment: false };
+const EMPTY: Form = { title: "", description: "", start_at: "", end_at: "", required_workers: 1, skills: "", open_recruitment: false, hourly_wage: "", pin: "" };
 
 export function TasksPage({ demo, onChanged, onSelect }: Props) {
   const [form, setForm] = useState<Form>(EMPTY);
@@ -39,6 +42,8 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
       required_workers: t.required_workers,
       skills: t.required_skills.join(", "),
       open_recruitment: t.open_recruitment,
+      hourly_wage: t.hourly_wage ? String(t.hourly_wage) : "",
+      pin: "",
     });
   };
 
@@ -59,10 +64,16 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
       required_workers: Number(form.required_workers),
       required_skills: parseSkills(form.skills),
       open_recruitment: form.open_recruitment,
+      ...(form.hourly_wage ? { hourly_wage: Number(form.hourly_wage) } : {}),
     };
     try {
-      if (editing) await api.updateTask(editing.id, body);
-      else await api.createTask({ ...body, farm_id: demo.farms[0].id });
+      if (editing) {
+        const pin = await askPin("작업 등록 때 정한 비밀번호 4자리를 입력하세요.");
+        if (!pin) return;
+        await api.updateTask(editing.id, body, pin);
+      } else {
+        await api.createTask({ ...body, farm_id: demo.farms[0].id, pin: form.pin });
+      }
       reset();
       await onChanged();
     } catch (err) {
@@ -75,8 +86,10 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
   const cancel = async (t: Task) => {
     if (!window.confirm(`'${t.title}' 작업을 취소할까요?`)) return;
     setError(null);
+    const pin = await askPin("작업 취소를 위해 비밀번호 4자리를 입력하세요.");
+    if (!pin) return;
     try {
-      await api.cancelTask(t.id);
+      await api.cancelTask(t.id, pin);
       await onChanged();
     } catch (err) {
       setError(describeError(err));
@@ -97,7 +110,7 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
               <span className={`badge ${t.status}`}>{TASK_STATUS_LABEL[t.status]}</span>
             </div>
             <div className="muted">
-              {fmt(t.start_at)} ~ {fmt(t.end_at)} · 필요 {t.required_workers}명 · 조건: {t.required_skills.join(", ") || "없음"}
+              {fmt(t.start_at)} ~ {fmt(t.end_at)} · 필요 {t.required_workers}명 · 시급 {t.hourly_wage ? `${t.hourly_wage.toLocaleString()}원` : "협의"} · 조건: {t.required_skills.join(", ") || "없음"}
             </div>
             <div className="row">
               <span className="muted">수락 {t.accepted_count + t.confirmed_count}/{t.required_workers}</span>
@@ -131,12 +144,20 @@ export function TasksPage({ demo, onChanged, onSelect }: Props) {
             <input type="number" min={1} max={50} required value={form.required_workers} onChange={(e) => set({ required_workers: Number(e.target.value) })} />
           </div>
         </div>
+        <label>시급 (원, 비우면 협의)</label>
+        <input type="number" min={1} max={500000} step={100} value={form.hourly_wage} placeholder="예: 12000" onChange={(e) => set({ hourly_wage: e.target.value })} />
         <label>필요 작업 유형 (쉼표로 구분)</label>
         <input value={form.skills} placeholder="수확, 선별" onChange={(e) => set({ skills: e.target.value })} />
         <label>
           <input type="checkbox" style={{ width: "auto" }} checked={form.open_recruitment} onChange={(e) => set({ open_recruitment: e.target.checked })} />{" "}
           공개 모집 (처음 보는 일손도 지원할 수 있음. 지원자는 내가 직접 선택해야 배치됩니다)
         </label>
+        {!editing && (
+          <>
+            <label>비밀번호 4자리 (수정·취소·배치 요청·확정 때 본인 확인에 사용합니다. 로그인이 아닌 간단한 확인용입니다)</label>
+            <input required type="password" inputMode="numeric" maxLength={4} pattern="\d{4}" placeholder="숫자 4자리" value={form.pin} onChange={(e) => set({ pin: e.target.value.replace(/\D/g, "") })} />
+          </>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" disabled={busy}>{editing ? "수정 저장" : "등록"}</button>
           {editing && <button type="button" onClick={reset}>편집 취소</button>}

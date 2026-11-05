@@ -8,6 +8,7 @@ from app.models.domain import (
 from app.repositories.memory import InMemoryRepository
 from app.schemas.requests import TaskCreate, TaskUpdate
 from app.schemas.responses import AssignmentView, SuggestionResult, TaskView
+from app.services.auth import set_pin
 from app.services.matching import suggest_candidates
 
 SCHEDULING_FIELDS = ("start_at", "end_at", "required_workers", "required_skills")
@@ -42,8 +43,9 @@ def get_task_view(repo: InMemoryRepository, task_id: str) -> TaskView:
 def create_task(repo: InMemoryRepository, payload: TaskCreate) -> TaskView:
     with repo.lock:
         repo.get_farm(payload.farm_id)
-        task = Task(id=repo.new_id("task"), **payload.model_dump())
+        task = Task(id=repo.new_id("task"), **payload.model_dump(exclude={"pin"}))
         repo.tasks[task.id] = task
+        set_pin(repo, "task", task.id, payload.pin)
         return build_task_view(repo, task)
 
 

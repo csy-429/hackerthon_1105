@@ -17,6 +17,7 @@ export interface Worker {
   origin: WorkerOrigin;
   experience: string;
   intro: string;
+  desired_hourly_wage: number | null;
 }
 
 export interface AssignmentView {
@@ -26,6 +27,15 @@ export interface AssignmentView {
   worker_name: string;
   status: AssignmentStatus;
   match_reasons: string[];
+  override_reasons: string[];
+}
+
+export interface Message {
+  id: string;
+  assignment_id: string;
+  sender: "farmer" | "worker";
+  text: string;
+  created_at: string;
 }
 
 export interface Task {
@@ -39,6 +49,7 @@ export interface Task {
   required_skills: string[];
   status: TaskStatus;
   open_recruitment: boolean;
+  hourly_wage: number | null;
   assignments: AssignmentView[];
   active_count: number;
   accepted_count: number;
@@ -65,6 +76,9 @@ export interface Candidate {
   reasons: string[];
   warnings: string[];
   exclusions: string[];
+  blockers: string[];
+  requestable: boolean;
+  desired_hourly_wage: number | null;
   conflicts: ConflictInfo[];
   assignment_status: AssignmentStatus | null;
   origin: WorkerOrigin;
@@ -109,4 +123,6 @@ export interface TaskInput {
   required_workers: number;
   required_skills: string[];
   open_recruitment: boolean;
+  hourly_wage?: number;
+  pin: string;
 }

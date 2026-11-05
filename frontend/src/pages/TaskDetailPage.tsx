@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
+import { Chat } from "../components/Chat";
+import { askPin } from "../lib/pin";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt } from "../lib/format";
 import type { AgentPlan, Candidate, Demo, Suggestions, Task } from "../types";
 
@@ -37,11 +39,13 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
     void loadSuggestions();
   }, [loadSuggestions, task.status, task.assignments.length]);
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const run = async (fn: (pin: string) => Promise<unknown>, prompt: string) => {
+    const pin = await askPin(prompt);
+    if (!pin) return;
     setBusy(true);
     setError(null);
     try {
-      await fn();
+      await fn(pin);
       await onChanged();
       await loadSuggestions();
     } catch (e) {
@@ -64,13 +68,27 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
   const slots = task.required_workers - task.active_count;
   const toggle = (c: Candidate) =>
     setPicked((p) => (p.includes(c.candidate_id) ? p.filter((x) => x !== c.candidate_id) : [...p, c.candidate_id]));
+  const PIN_PROMPT = "작업 등록 때 정한 비밀번호 4자리를 입력하세요.";
+
+  const requestPicked = () => {
+    const forced = (sug?.candidates ?? []).filter((c) => picked.includes(c.candidate_id) && !c.eligible);
+    if (forced.length > 0) {
+      const lines = forced.map((c) => `- ${c.display_name}: ${c.exclusions.join(", ")}`).join("\n");
+      if (!window.confirm(`조건이 맞지 않는 일손에게도 요청합니다. 일손이 협의 후 수락할 수 있습니다.\n${lines}`)) return;
+    }
+    void run(
+      (pin) =>
+        api.requestConfirmation(task.id, picked, pin, forced.map((c) => c.candidate_id)),
+      PIN_PROMPT,
+    );
+  };
 
   return (
     <>
       <button onClick={onBack}>← 목록</button>
       <h2>{task.title}</h2>
       <div className="muted">
-        {fmt(task.start_at)} ~ {fmt(task.end_at)} · 필요 {task.required_workers}명 · 조건: {task.required_skills.join(", ") || "없음"}
+        {fmt(task.start_at)} ~ {fmt(task.end_at)} · 필요 {task.required_workers}명 · 시급 {task.hourly_wage ? `${task.hourly_wage.toLocaleString()}원` : "협의"} · 조건: {task.required_skills.join(", ") || "없음"}
       </div>
       <p>
         상태: <span className={`badge ${task.status}`}>{TASK_STATUS_LABEL[task.status]}</span>{" "}
@@ -87,6 +105,10 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
             <span className="badge">{ASSIGNMENT_STATUS_LABEL[a.status]}</span>
           </div>
           <ul>{a.match_reasons.map((r) => <li key={r} className="ok">{r}</li>)}</ul>
+          {a.override_reasons.length > 0 && (
+            <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치 요청: {r}</li>)}</ul>
+          )}
+          <Chat assignmentId={a.id} me="farmer" closed={a.status === "declined"} />
         </div>
       ))}
 
@@ -99,7 +121,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           <button
             className="primary"
             disabled={busy || !approved || task.accepted_count !== task.required_workers}
-            onClick={() => void run(() => api.confirm(task.id, approved))}
+            onClick={() => void run((pin) => api.confirm(task.id, approved, pin), PIN_PROMPT)}
           >
             배치 확정
           </button>
@@ -120,7 +142,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           {sug.candidates.map((c) => (
             <div className="card" key={c.candidate_id}>
               <div className="row">
-                {c.eligible && (!c.assignment_status || c.assignment_status === "applied") && (
+                {(c.eligible || c.requestable) && (!c.assignment_status || c.assignment_status === "applied") && (
                   <input
                     type="checkbox"
                     style={{ width: "auto" }}
@@ -138,7 +160,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
                     disabled={busy}
                     onClick={() => {
                       const a = task.assignments.find((x) => x.worker_id === c.candidate_id && x.status === "applied");
-                      if (a) void run(() => api.decline(a.id));
+                      if (a) void run((pin) => api.decline(a.id, pin), PIN_PROMPT);
                     }}
                   >
                     지원 거절
@@ -148,10 +170,13 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
                   <span className="badge">{ASSIGNMENT_STATUS_LABEL[c.assignment_status]}</span>
                 ) : c.eligible ? (
                   <span className="badge confirmed">배치 가능 · 추천도 {c.score}</span>
+                ) : c.requestable ? (
+                  <span className="badge proposed">조건 불일치 · 요청 가능</span>
                 ) : (
                   <span className="badge cancelled">배치 불가</span>
                 )}
               </div>
+              {c.desired_hourly_wage && <div className="muted">희망 시급: {c.desired_hourly_wage.toLocaleString()}원</div>}
               {c.origin === "public" && (c.experience || c.intro) && (
                 <div className="muted">
                   {c.experience && <div>경력: {c.experience}</div>}
@@ -174,7 +199,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           <button
             className="primary"
             disabled={busy || picked.length === 0}
-            onClick={() => void run(() => api.requestConfirmation(task.id, picked))}
+            onClick={requestPicked}
           >
             선택한 {picked.length}명에게 배치 요청
           </button>

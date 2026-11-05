@@ -67,6 +67,8 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `status`
 - `origin` — roster(농장주 명단) 또는 public(공개 지원)
 - `experience`, `intro` — 선택 입력(200자·500자), 연락처 형식 거부
+- `desired_hourly_wage` — 희망 시급(원, 선택)
+
 ### Task
 
 - `id`
@@ -79,6 +81,7 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `required_skills`
 - `status` — draft, proposed, confirmed, completed, cancelled
 - `open_recruitment` — 공개 모집 여부(기본 false)
+- `hourly_wage` — 시급(원, 선택)
 
 ### Assignment
 
@@ -87,7 +90,28 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `worker_id`
 - `status` — proposed, accepted, declined, confirmed 외에 `applied`(공개 모집 지원, 인원 미차지)
 - `match_reasons`
+- `override_reasons` — 조건이 맞지 않는데도 요청·지원한 경우 당사자가 인지한 사유
 - `created_at`
+
+### Message
+
+- `id`, `assignment_id`, `sender`(farmer|worker), `text`(1~500자, 연락처 형식 거부), `created_at`
+- 배치 1건당 최대 200개. 거절(`declined`)된 배치에는 보낼 수 없다.
+
+### 비밀번호(PIN)
+
+- 작업과 일손을 만들 때 숫자 4자리 `pin`을 받는다(`^\d{4}$`). 도메인 모델과 응답에는 포함하지 않고 별도 저장소(`pins`)에 PBKDF2-SHA256 + 솔트 해시로만 둔다.
+- 이후 보호된 요청은 `X-Pin` 헤더로 보낸다. 없으면 401 `pin_required`, 틀리면 403 `invalid_pin`, 5회 연속 실패 시 5분간 429 `pin_locked`. 비교는 상수 시간 비교를 쓴다.
+- 한계: 조합이 1만 개라 무차별 대입에 약하고(잠금으로만 완화), 분실 복구와 신원 확인이 없다. 서버 메모리 저장이라 재시작 시 사라진다.
+
+| 요청 | 필요한 PIN |
+|---|---|
+| 작업 수정·취소·배치 요청·확정 | 작업 PIN |
+| 일손 수정(스케줄·상태) | 일손 PIN |
+| 지원(`apply`), 수락(`accept`) | 일손 PIN |
+| 거절(`decline`) | 일손 PIN 또는 작업 PIN |
+| 메시지 조회·전송 | 일손 PIN 또는 작업 PIN(일치한 쪽이 발신자) |
+| 후보 계산, 목록 조회, 데모 | 없음 |
 
 핵심 데이터는 최소화한다. MVP에서는 연락처, 상세 주소, 주민등록 정보, 임금·계좌 정보 등을 저장하지 않는다.
 
@@ -106,6 +130,10 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 
 다른 작업에 제안(proposed)·수락(accepted) 상태로 겹치는 경우는 제외하지 않고 경고(`warnings`)로 표시한다.
 
+시급: 일손의 희망 시급이 작업 시급보다 높으면 제외하지 않고 '협의 필요' 경고만 낸다. 한쪽이라도 비어 있으면 비교하지 않는다. 최저임금 등 법적 판단은 하지 않는다.
+
+조건 불일치 요청: 제외 사유를 **차단 사유**(`blockers`: 취소된 작업, 비활성 일손, 이 작업 거절 이력, 확정된 다른 작업과 시간 겹침)와 **협의 가능 사유**(작업 유형 부족, 가능 시간 일부·불일치)로 나눈다. 차단 사유가 없으면 `requestable=true`이며, `request-confirmation`의 `force_worker_ids` 또는 `apply`의 `force=true`로 요청·지원할 수 있다. 이때 사유는 `Assignment.override_reasons`에 기록하고, 확정 시 재검증은 차단 사유만 확인한다.
+
 후보 점수는 단순하고 설명 가능하게 유지한다. 적격 후보는 100점에서 경고 1건당 10점을 감점하고, 부적격 후보는 0점이다. 점수는 추천 순서일 뿐 고용 적합성이나 작업자의 우열을 의미하지 않는다.
 
 매칭 결과는 다음 구조로 반환한다.
@@ -114,6 +142,8 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `reasons`: 적격 근거
 - `warnings`: 제외하지는 않지만 확인이 필요한 사항
 - `exclusions`: 부적격 사유(`eligible=false`일 때 사용자에게 표시)
+- `blockers`, `requestable`: 요청으로도 넘길 수 없는 사유와, 조건 불일치 요청 가능 여부
+- `desired_hourly_wage`: 일손의 희망 시급
 - `conflicts`: 충돌한 일정(`task_id`, `title`, `start_at`, `end_at`)
 - `assignment_status`: 이 작업에 이미 배치 요청이 있으면 그 상태
 - `origin`, `experience`, `intro`: 일손 출처와 공개 프로필 정보
@@ -127,13 +157,15 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 - `POST /api/tasks` — 작업 초안 생성
 - `PATCH /api/tasks/{id}` — 작업 정보 수정
 - `POST /api/tasks/{id}/suggestions` — 후보 및 배치안 계산
-- `POST /api/tasks/{id}/apply` — 일손의 공개 모집 지원(`open_recruitment` 작업, 초안·제안 상태만). 조건 불충족이면 409와 `exclusions`
+- `POST /api/tasks/{id}/apply` — 일손의 공개 모집 지원(`open_recruitment` 작업, 초안·제안 상태만, 일손 PIN). 조건 불충족이면 409와 `exclusions`·`blockers`, `force=true`면 차단 사유 없는 불일치 지원 가능
 - `GET /api/workers/{id}/opportunities` — 공개 모집 중인 작업과 해당 일손의 적격 평가
-- `POST /api/workers?public=true` — 공개 프로필(`origin=public`) 생성. 기본은 명단 일손(`roster`)
-- `POST /api/tasks/{id}/request-confirmation` — 명단 일손에게 배치 요청, 지원자는 선택 시 바로 수락 상태
-- `POST /api/assignments/{id}/accept` — 일손 수락
-- `POST /api/assignments/{id}/decline` — 일손 거절. 지원(`applied`)은 지원 취소·지원 거절로 사용
-- `POST /api/tasks/{id}/confirm` — 조건 충족 및 사용자 확인 후 확정
+- `POST /api/workers?public=true` — 공개 프로필(`origin=public`) 생성. 기본은 명단 일손(`roster`). 본문에 `pin` 필수
+- `PATCH /api/workers/{id}` — 일손 수정(일손 PIN)
+- `POST /api/tasks/{id}/request-confirmation` — 명단 일손에게 배치 요청(작업 PIN), 지원자는 선택 시 바로 수락 상태. `force_worker_ids`로 조건 불일치 요청
+- `POST /api/assignments/{id}/accept` — 일손 수락(일손 PIN)
+- `POST /api/assignments/{id}/decline` — 거절(일손 또는 작업 PIN). 지원(`applied`)은 지원 취소·지원 거절로 사용
+- `GET|POST /api/assignments/{id}/messages` — 협의 채팅 조회·전송(일손 또는 작업 PIN)
+- `POST /api/tasks/{id}/confirm` — 조건 충족 및 사용자 확인 후 확정(작업 PIN)
 - `POST /api/agent/plan` — 에이전트가 작업 요청을 구조화하고 배치안을 설명
 - `GET /health` — 상태 확인
 
@@ -152,7 +184,7 @@ Microsoft Agent Framework의 GitHub Copilot 연동은 Python 패키지 `agent-fr
 ## 7. 보안 및 신뢰
 
 - 데모 환경에는 실제 개인 정보를 입력하지 않도록 안내한다.
-- 공개 지원자 프로필의 `experience`·`intro`는 전화번호·이메일 형식을 서버에서 거부(422)하고 길이를 제한한다. 로그인이 없으므로 스팸 지원은 막지 못하며, 이는 알려진 한계다.
+- 공개 지원자 프로필의 `experience`·`intro`와 채팅 메시지는 전화번호·이메일 형식을 서버에서 거부(422)하고 길이를 제한한다. 비밀번호 4자리는 계정이 아니라 본인 확인용이며 잠금으로만 대입을 늦춘다. 스팸 지원은 완전히 막지 못하며, 알려진 한계다.
 - 브라우저에서 Copilot SDK 자격 증명을 사용하지 않는다.
 - AI가 만든 일정안은 항상 초안으로 표시한다.
 - 확정 API는 일정 충돌과 당사자 동의 상태를 서버에서 다시 확인한다.

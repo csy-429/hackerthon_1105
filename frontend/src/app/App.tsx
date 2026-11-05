@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
+import { PinDialog } from "../lib/pin";
 import type { Demo } from "../types";
 import { HomePage } from "../pages/HomePage";
 import { GuidePage } from "../pages/GuidePage";
@@ -112,6 +113,7 @@ export function App() {
         {demo && role === "farmer" && tab === "workers" && <WorkersPage workers={demo.workers} onChanged={refresh} />}
         {demo && role === "worker" && <WorkerPortalPage demo={demo} onChanged={refresh} />}
       </main>
+      <PinDialog />
     </>
   );
 }

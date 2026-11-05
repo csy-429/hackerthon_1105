@@ -1,4 +1,4 @@
-import type { AgentPlan, AssignmentView, Demo, Opportunity, Suggestions, Task, TaskInput, Worker } from "../types";
+import type { AgentPlan, AssignmentView, Demo, Message, Opportunity, Suggestions, Task, TaskInput, Worker } from "../types";
 
 export class ApiError extends Error {
   constructor(
@@ -11,12 +11,15 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, pin?: string): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
       method,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(pin ? { "X-Pin": pin } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -39,29 +42,43 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (await res.json()) as T;
 }
 
+export type WorkerInput = Pick<Worker, "display_name" | "skills" | "availability"> & {
+  pin: string;
+  experience?: string;
+  intro?: string;
+  desired_hourly_wage?: number;
+};
+
 export const api = {
   demo: () => request<Demo>("GET", "/demo"),
   resetDemo: () => request<Demo>("POST", "/demo/reset"),
   createTask: (t: TaskInput) => request<Task>("POST", "/tasks", t),
-  updateTask: (id: string, t: Partial<TaskInput>) => request<Task>("PATCH", `/tasks/${id}`, t),
-  cancelTask: (id: string) => request<Task>("POST", `/tasks/${id}/cancel`),
+  updateTask: (id: string, t: Partial<TaskInput>, pin: string) => request<Task>("PATCH", `/tasks/${id}`, t, pin),
+  cancelTask: (id: string, pin: string) => request<Task>("POST", `/tasks/${id}/cancel`, undefined, pin),
   suggestions: (id: string) => request<Suggestions>("POST", `/tasks/${id}/suggestions`),
-  requestConfirmation: (id: string, workerIds: string[]) =>
-    request<Task>("POST", `/tasks/${id}/request-confirmation`, { worker_ids: workerIds }),
-  confirm: (id: string, approved: boolean) =>
-    request<Task>("POST", `/tasks/${id}/confirm`, { farmer_approved: approved }),
+  requestConfirmation: (id: string, workerIds: string[], pin: string, forceWorkerIds: string[] = []) =>
+    request<Task>(
+      "POST",
+      `/tasks/${id}/request-confirmation`,
+      { worker_ids: workerIds, force_worker_ids: forceWorkerIds },
+      pin,
+    ),
+  confirm: (id: string, approved: boolean, pin: string) =>
+    request<Task>("POST", `/tasks/${id}/confirm`, { farmer_approved: approved }, pin),
   workerAssignments: (workerId: string) =>
     request<AssignmentView[]>("GET", `/assignments?worker_id=${encodeURIComponent(workerId)}`),
-  accept: (id: string) => request<AssignmentView>("POST", `/assignments/${id}/accept`),
-  decline: (id: string) => request<AssignmentView>("POST", `/assignments/${id}/decline`),
-  createWorker: (w: Pick<Worker, "display_name" | "skills" | "availability">) =>
-    request<Worker>("POST", "/workers", w),
-  createPublicWorker: (w: Pick<Worker, "display_name" | "skills" | "availability" | "experience" | "intro">) =>
-    request<Worker>("POST", "/workers?public=true", w),
+  accept: (id: string, pin: string) => request<AssignmentView>("POST", `/assignments/${id}/accept`, undefined, pin),
+  decline: (id: string, pin: string) => request<AssignmentView>("POST", `/assignments/${id}/decline`, undefined, pin),
+  createWorker: (w: WorkerInput) => request<Worker>("POST", "/workers", w),
+  createPublicWorker: (w: WorkerInput) => request<Worker>("POST", "/workers?public=true", w),
   opportunities: (workerId: string) => request<Opportunity[]>("GET", `/workers/${workerId}/opportunities`),
-  apply: (taskId: string, workerId: string) =>
-    request<AssignmentView>("POST", `/tasks/${taskId}/apply`, { worker_id: workerId }),
-  updateWorker: (id: string, w: Partial<Worker>) => request<Worker>("PATCH", `/workers/${id}`, w),
+  apply: (taskId: string, workerId: string, pin: string, force = false) =>
+    request<AssignmentView>("POST", `/tasks/${taskId}/apply`, { worker_id: workerId, force }, pin),
+  updateWorker: (id: string, w: Partial<Worker>, pin: string) => request<Worker>("PATCH", `/workers/${id}`, w, pin),
+  messages: (assignmentId: string, pin: string) =>
+    request<Message[]>("GET", `/assignments/${assignmentId}/messages`, undefined, pin),
+  sendMessage: (assignmentId: string, text: string, pin: string) =>
+    request<Message>("POST", `/assignments/${assignmentId}/messages`, { text }, pin),
   plan: (taskId: string, text: string) =>
     request<AgentPlan>("POST", "/agent/plan", { task_id: taskId, request: text }),
 };

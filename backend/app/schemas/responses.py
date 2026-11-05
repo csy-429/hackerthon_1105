@@ -19,6 +19,9 @@ class Candidate(BaseModel):
     reasons: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     exclusions: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    requestable: bool = False
+    desired_hourly_wage: int | None = None
     conflicts: list[ConflictInfo] = Field(default_factory=list)
     assignment_status: AssignmentStatus | None = None
     origin: WorkerOrigin = WorkerOrigin.ROSTER

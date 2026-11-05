@@ -6,7 +6,7 @@ from app.main import create_app
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(create_app(serve_frontend=False))
+    return TestClient(create_app(serve_frontend=False), headers={"X-Pin": "1234"})
 
 
 def _ids(candidates, eligible):
@@ -26,7 +26,7 @@ def test_task_crud_and_cancel(client):
         "start_at": "2030-01-01T09:00:00",
         "end_at": "2030-01-01T12:00:00",
         "required_workers": 1,
-        "required_skills": ["포장"],
+        "required_skills": ["포장"], "pin": "1234",
     }
     created = client.post("/api/tasks", json=body)
     assert created.status_code == 201
@@ -40,7 +40,7 @@ def test_task_crud_and_cancel(client):
 
 def test_bad_input_and_status_injection(client):
     bad = {"farm_id": "farm_demo", "title": "x", "start_at": "2030-01-01T12:00:00",
-           "end_at": "2030-01-01T09:00:00", "required_workers": 1, "required_skills": []}
+           "end_at": "2030-01-01T09:00:00", "required_workers": 1, "required_skills": [], "pin": "1234"}
     assert client.post("/api/tasks", json=bad).status_code == 422
     ok = {**bad, "end_at": "2030-01-01T13:00:00", "status": "confirmed"}
     assert client.post("/api/tasks", json=ok).status_code == 422
@@ -76,10 +76,10 @@ def test_ineligible_worker_rejected(client):
 def test_confirm_after_accept(client):
     client.post("/api/tasks", json={
         "farm_id": "farm_demo", "title": "단일", "start_at": "2030-01-01T09:00:00",
-        "end_at": "2030-01-01T10:00:00", "required_workers": 1, "required_skills": []})
+        "end_at": "2030-01-01T10:00:00", "required_workers": 1, "required_skills": [], "pin": "1234"})
     task = [t for t in client.get("/api/tasks").json() if t["title"] == "단일"][0]
     w = client.post("/api/workers", json={
-        "display_name": "신규", "skills": ["수확"],
+        "display_name": "신규", "skills": ["수확"], "pin": "1234",
         "availability": [{"start": "2030-01-01T08:00:00", "end": "2030-01-01T18:00:00"}]}).json()
     t = client.post(f"/api/tasks/{task['id']}/request-confirmation",
                     json={"worker_ids": [w["id"]]}).json()
@@ -104,7 +104,7 @@ def test_worker_sees_own_assignments_and_edits_schedule(client):
 
 
 def _public_worker(client, **extra):
-    body = {"display_name": "낯선이", "skills": ["운반"], "experience": "", "intro": "",
+    body = {"display_name": "낯선이", "skills": ["운반"], "experience": "", "intro": "", "pin": "1234",
             "availability": [{"start": "2030-01-01T08:00:00", "end": "2030-01-01T18:00:00"}]}
     body.update(extra)
     return client.post("/api/workers", params={"public": "true"}, json=body)
@@ -114,7 +114,7 @@ def _open_task(client, required=1, open_recruitment=True):
     return client.post("/api/tasks", json={
         "farm_id": "farm_demo", "title": "공개", "start_at": "2030-01-01T09:00:00",
         "end_at": "2030-01-01T12:00:00", "required_workers": required,
-        "required_skills": ["운반"], "open_recruitment": open_recruitment}).json()
+        "required_skills": ["운반"], "open_recruitment": open_recruitment, "pin": "1234"}).json()
 
 
 def test_public_applicant_flow(client):

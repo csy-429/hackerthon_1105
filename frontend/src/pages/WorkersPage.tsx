@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, describeError } from "../lib/api";
 import { fmt, parseSkills, withSeconds } from "../lib/format";
+import { askPin } from "../lib/pin";
 import type { TimeWindow, Worker } from "../types";
 
 interface Props {
@@ -14,6 +15,8 @@ export function WorkersPage({ workers, onChanged }: Props) {
   const [windows, setWindows] = useState<TimeWindow[]>([]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [wage, setWage] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,10 +34,18 @@ export function WorkersPage({ workers, onChanged }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await api.createWorker({ display_name: name, skills: parseSkills(skills), availability: windows });
+      await api.createWorker({
+        display_name: name,
+        skills: parseSkills(skills),
+        availability: windows,
+        pin,
+        ...(wage ? { desired_hourly_wage: Number(wage) } : {}),
+      });
       setName("");
       setSkills("");
       setWindows([]);
+      setWage("");
+      setPin("");
       await onChanged();
     } catch (err) {
       setError(describeError(err));
@@ -45,8 +56,10 @@ export function WorkersPage({ workers, onChanged }: Props) {
 
   const toggle = async (w: Worker) => {
     setError(null);
+    const entered = await askPin(`'${w.display_name}' 등록 때 정한 비밀번호 4자리를 입력하세요.`);
+    if (!entered) return;
     try {
-      await api.updateWorker(w.id, { status: w.status === "active" ? "inactive" : "active" });
+      await api.updateWorker(w.id, { status: w.status === "active" ? "inactive" : "active" }, entered);
       await onChanged();
     } catch (err) {
       setError(describeError(err));
@@ -65,6 +78,9 @@ export function WorkersPage({ workers, onChanged }: Props) {
             <button onClick={() => void toggle(w)}>{w.status === "active" ? "비활성화" : "활성화"}</button>
           </div>
           <div className="muted">할 수 있는 작업: {w.skills.join(", ") || "없음"}</div>
+          <div className="muted">
+            희망 시급: {w.desired_hourly_wage ? `${w.desired_hourly_wage.toLocaleString()}원` : "협의"}
+          </div>
           <div className="muted">
             가능 시간: {w.availability.map((a) => `${fmt(a.start)}~${fmt(a.end)}`).join(" / ") || "없음"}
           </div>
@@ -91,6 +107,10 @@ export function WorkersPage({ workers, onChanged }: Props) {
             </li>
           ))}
         </ul>
+        <label>희망 시급 (원, 비우면 협의)</label>
+        <input type="number" min={1} max={500000} step={100} value={wage} onChange={(e) => setWage(e.target.value)} />
+        <label>비밀번호 4자리 (활성/비활성·정보 수정 때 본인 확인에 사용합니다)</label>
+        <input required type="password" inputMode="numeric" maxLength={4} pattern="\d{4}" placeholder="숫자 4자리" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
         <button className="primary" disabled={busy}>일손 등록</button>
       </form>
     </>

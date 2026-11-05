@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header
 
 from app.api.deps import get_repository
+from app.models.domain import Message
 from app.repositories.memory import InMemoryRepository
+from app.schemas.requests import MessageCreate
 from app.schemas.responses import AssignmentView
 from app.services import assignments as assignment_service
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
+
+PinHeader = Annotated[str | None, Header(alias="X-Pin")]
 
 
 @router.get("", response_model=list[AssignmentView])
@@ -19,13 +25,36 @@ def list_assignments(
 
 @router.post("/{assignment_id}/accept", response_model=AssignmentView)
 def accept(
-    assignment_id: str, repo: InMemoryRepository = Depends(get_repository)
+    assignment_id: str,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
 ) -> AssignmentView:
-    return assignment_service.accept_assignment(repo, assignment_id)
+    return assignment_service.accept_assignment(repo, assignment_id, x_pin)
 
 
 @router.post("/{assignment_id}/decline", response_model=AssignmentView)
 def decline(
-    assignment_id: str, repo: InMemoryRepository = Depends(get_repository)
+    assignment_id: str,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
 ) -> AssignmentView:
-    return assignment_service.decline_assignment(repo, assignment_id)
+    return assignment_service.decline_assignment(repo, assignment_id, x_pin)
+
+
+@router.get("/{assignment_id}/messages", response_model=list[Message])
+def messages(
+    assignment_id: str,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
+) -> list[Message]:
+    return assignment_service.list_messages(repo, assignment_id, x_pin)
+
+
+@router.post("/{assignment_id}/messages", response_model=Message, status_code=201)
+def send(
+    assignment_id: str,
+    payload: MessageCreate,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
+) -> Message:
+    return assignment_service.send_message(repo, assignment_id, x_pin, payload.text)

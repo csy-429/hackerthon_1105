@@ -49,12 +49,25 @@ def evaluate_candidate(
     warnings: list[str] = []
     exclusions: list[str] = []
     conflicts: list[ConflictInfo] = []
+    blockers: list[str] = []
     own_status: AssignmentStatus | None = None
 
     if task.status == TaskStatus.CANCELLED:
         exclusions.append("취소된 작업입니다")
+        blockers.append("취소된 작업입니다")
     if worker.status != WorkerStatus.ACTIVE:
         exclusions.append("비활성 상태의 일손입니다")
+        blockers.append("비활성 상태의 일손입니다")
+
+    if (
+        task.hourly_wage is not None
+        and worker.desired_hourly_wage is not None
+        and worker.desired_hourly_wage > task.hourly_wage
+    ):
+        warnings.append(
+            f"희망 시급({worker.desired_hourly_wage:,}원)이 제시 시급({task.hourly_wage:,}원)보다 "
+            "높아 협의가 필요합니다"
+        )
 
     missing = [skill for skill in task.required_skills if skill not in worker.skills]
     if missing:
@@ -77,6 +90,7 @@ def evaluate_candidate(
         if assignment.task_id == task.id:
             if assignment.status == AssignmentStatus.DECLINED:
                 exclusions.append("이 작업의 배치를 이미 거절했습니다")
+                blockers.append("이 작업의 배치를 이미 거절했습니다")
             else:
                 own_status = assignment.status
             continue
@@ -90,6 +104,7 @@ def evaluate_candidate(
         label = f"{other.title} ({_span(other.start_at, other.end_at)})"
         if assignment.status == AssignmentStatus.CONFIRMED:
             exclusions.append(f"확정된 다른 작업과 시간이 겹칩니다: {label}")
+            blockers.append(f"확정된 다른 작업과 시간이 겹칩니다: {label}")
             conflicts.append(
                 ConflictInfo(
                     task_id=other.id,
@@ -111,6 +126,9 @@ def evaluate_candidate(
         reasons=reasons,
         warnings=warnings,
         exclusions=exclusions,
+        blockers=blockers,
+        requestable=not eligible and not blockers,
+        desired_hourly_wage=worker.desired_hourly_wage,
         conflicts=conflicts,
         assignment_status=own_status,
         origin=worker.origin,

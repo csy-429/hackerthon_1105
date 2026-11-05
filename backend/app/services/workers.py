@@ -2,6 +2,7 @@ from app.models.domain import ACTIVE_ASSIGNMENT_STATUSES, TaskStatus, Worker, Wo
 from app.repositories.memory import InMemoryRepository
 from app.schemas.requests import WorkerCreate, WorkerUpdate
 from app.schemas.responses import OpportunityView
+from app.services.auth import set_pin
 from app.services.matching import evaluate_candidate
 
 
@@ -16,8 +17,11 @@ def create_worker(
     origin: WorkerOrigin = WorkerOrigin.ROSTER,
 ) -> Worker:
     with repo.lock:
-        worker = Worker(id=repo.new_id("worker"), origin=origin, **payload.model_dump())
+        worker = Worker(
+            id=repo.new_id("worker"), origin=origin, **payload.model_dump(exclude={"pin"})
+        )
         repo.workers[worker.id] = worker
+        set_pin(repo, "worker", worker.id, payload.pin)
         return worker
 
 

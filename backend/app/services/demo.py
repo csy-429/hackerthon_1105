@@ -13,10 +13,13 @@ from app.models.domain import (
 )
 from app.repositories.memory import InMemoryRepository
 from app.schemas.responses import DemoPayload
+from app.services.auth import set_pin
 from app.services.tasks import list_task_views
 
+DEMO_PIN = "1234"
 DEMO_NOTICE = (
     "가상의 농장·일손·일정 데이터입니다. 실제 개인정보를 입력하지 마세요. "
+    "데모 데이터의 비밀번호는 모두 1234입니다. "
     "데이터는 서버 메모리에만 저장되며 서버가 재시작되거나 초기화하면 사라집니다."
 )
 DEMO_FARM_ID = "farm_demo"
@@ -53,6 +56,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 display_name="일손 나래",
                 skills=["수확", "포장", "선별"],
                 availability=[_window(day1, 8, 17), _window(day2, 8, 17)],
+                desired_hourly_wage=14000,
             ),
             Worker(
                 id="worker_dasom",
@@ -91,6 +95,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
         ]
         for worker in workers:
             repo.workers[worker.id] = worker
+            set_pin(repo, "worker", worker.id, DEMO_PIN)
 
         tasks = [
             Task(
@@ -103,6 +108,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 required_workers=2,
                 required_skills=["수확"],
                 status=TaskStatus.CONFIRMED,
+                hourly_wage=12000,
             ),
             Task(
                 id="task_sorting",
@@ -113,6 +119,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 end_at=_at(day1, 15),
                 required_workers=2,
                 required_skills=["선별"],
+                hourly_wage=11000,
             ),
             Task(
                 id="task_spray",
@@ -122,6 +129,7 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 end_at=_at(day2, 11),
                 required_workers=1,
                 required_skills=["방제"],
+                hourly_wage=13000,
             ),
             Task(
                 id="task_haul",
@@ -132,10 +140,12 @@ def load_demo(repo: InMemoryRepository, today: date | None = None) -> None:
                 required_workers=1,
                 required_skills=["운반"],
                 open_recruitment=True,
+                hourly_wage=11000,
             ),
         ]
         for task in tasks:
             repo.tasks[task.id] = task
+            set_pin(repo, "task", task.id, DEMO_PIN)
 
         # 확정된 수확 작업에 가온·마루를 배치해 시간 충돌 사례를 보여 준다.
         for worker_id in ("worker_gaon", "worker_maru"):

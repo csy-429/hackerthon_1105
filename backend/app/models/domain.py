@@ -95,6 +95,7 @@ class Worker(BaseModel):
     origin: WorkerOrigin = WorkerOrigin.ROSTER
     experience: str = ""
     intro: str = ""
+    desired_hourly_wage: int | None = None
 
 
 class Task(BaseModel):
@@ -108,6 +109,7 @@ class Task(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     status: TaskStatus = TaskStatus.DRAFT
     open_recruitment: bool = False
+    hourly_wage: int | None = None
 
 
 class Assignment(BaseModel):
@@ -116,4 +118,14 @@ class Assignment(BaseModel):
     worker_id: str
     status: AssignmentStatus = AssignmentStatus.PROPOSED
     match_reasons: list[str] = Field(default_factory=list)
+    # 조건이 맞지 않는데도 요청·지원한 경우, 당사자가 인지한 사유
+    override_reasons: list[str] = Field(default_factory=list)
+    created_at: datetime
+
+
+class Message(BaseModel):
+    id: str
+    assignment_id: str
+    sender: str  # "farmer" | "worker"
+    text: str
     created_at: datetime

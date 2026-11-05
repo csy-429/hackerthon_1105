@@ -29,6 +29,13 @@ Experience = Annotated[
 Intro = Annotated[
     str, StringConstraints(strip_whitespace=True, max_length=500), AfterValidator(reject_contact_info)
 ]
+Pin = Annotated[str, StringConstraints(pattern=r"^\d{4}$")]
+Wage = Annotated[int, Field(ge=1, le=500_000)]
+ChatText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
+    AfterValidator(reject_contact_info),
+]
 
 
 class _Strict(BaseModel):
@@ -45,6 +52,8 @@ class TaskCreate(_Strict):
     required_workers: int = Field(default=1, ge=1, le=50)
     required_skills: list[str] = Field(default_factory=list, max_length=20)
     open_recruitment: bool = False
+    hourly_wage: Wage | None = None
+    pin: Pin
 
     @field_validator("start_at", "end_at")
     @classmethod
@@ -71,6 +80,7 @@ class TaskUpdate(_Strict):
     required_workers: int | None = Field(default=None, ge=1, le=50)
     required_skills: list[str] | None = Field(default=None, max_length=20)
     open_recruitment: bool | None = None
+    hourly_wage: Wage | None = None
 
     @field_validator("start_at", "end_at")
     @classmethod
@@ -89,6 +99,8 @@ class WorkerCreate(_Strict):
     availability: list[TimeWindow] = Field(default_factory=list, max_length=50)
     experience: Experience = ""
     intro: Intro = ""
+    desired_hourly_wage: Wage | None = None
+    pin: Pin
 
     @field_validator("skills")
     @classmethod
@@ -103,6 +115,7 @@ class WorkerUpdate(_Strict):
     status: WorkerStatus | None = None
     experience: Experience | None = None
     intro: Intro | None = None
+    desired_hourly_wage: Wage | None = None
 
     @field_validator("skills")
     @classmethod
@@ -112,10 +125,17 @@ class WorkerUpdate(_Strict):
 
 class ConfirmationRequest(_Strict):
     worker_ids: list[str] = Field(min_length=1, max_length=50)
+    # 조건이 맞지 않아도(차단 사유 제외) 요청을 보낼 일손 id
+    force_worker_ids: list[str] = Field(default_factory=list, max_length=50)
 
 
 class ApplyRequest(_Strict):
     worker_id: str
+    force: bool = False
+
+
+class MessageCreate(_Strict):
+    text: ChatText
 
 
 class ConfirmRequest(_Strict):

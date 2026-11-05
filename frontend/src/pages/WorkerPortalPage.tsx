@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../lib/api";
+import { Chat } from "../components/Chat";
+import { askPin } from "../lib/pin";
 import { ASSIGNMENT_STATUS_LABEL, TASK_STATUS_LABEL, fmt, parseSkills, withSeconds } from "../lib/format";
 import type { AssignmentView, Demo, Opportunity, TimeWindow } from "../types";
 
@@ -8,8 +10,10 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
+const PIN_PROMPT = "내 프로필 비밀번호 4자리를 입력하세요.";
+
 export function WorkerPortalPage({ demo, onChanged }: Props) {
-  const active = demo.workers.filter((w) => w.status === "active");
+  const active = demo.workers;
   const [workerId, setWorkerId] = useState(active[0]?.id ?? "");
   const worker = demo.workers.find((w) => w.id === workerId) ?? null;
 
@@ -26,6 +30,9 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
   const [newName, setNewName] = useState("");
   const [newExp, setNewExp] = useState("");
   const [newIntro, setNewIntro] = useState("");
+  const [newWage, setNewWage] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [wage, setWage] = useState("");
 
   const loadOpps = useCallback(async () => {
     if (!workerId) return setOpps([]);
@@ -50,6 +57,8 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
         availability: [],
         experience: newExp,
         intro: newIntro,
+        pin: newPin,
+        ...(newWage ? { desired_hourly_wage: Number(newWage) } : {}),
       });
       await onChanged();
       setWorkerId(w.id);
@@ -57,6 +66,8 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
       setNewName("");
       setNewExp("");
       setNewIntro("");
+      setNewWage("");
+      setNewPin("");
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -64,11 +75,13 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
     }
   };
 
-  const applyTo = async (taskId: string) => {
+  const applyTo = async (taskId: string, force: boolean) => {
+    const pin = await askPin(PIN_PROMPT);
+    if (!pin) return;
     setBusy(true);
     setError(null);
     try {
-      await api.apply(taskId, workerId);
+      await api.apply(taskId, workerId, pin, force);
       await onChanged();
       await loadAssignments();
       await loadOpps();
@@ -89,6 +102,7 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
 
   useEffect(() => {
     setSkills(worker?.skills.join(", ") ?? "");
+    setWage(worker?.desired_hourly_wage ? String(worker.desired_hourly_wage) : "");
     setWindows(worker?.availability ?? []);
     setSaved(false);
     setError(null);
@@ -109,11 +123,17 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
 
   const save = async () => {
     if (!worker) return;
+    const pin = await askPin(PIN_PROMPT);
+    if (!pin) return;
     setBusy(true);
     setError(null);
     setSaved(false);
     try {
-      await api.updateWorker(worker.id, { skills: parseSkills(skills), availability: windows });
+      await api.updateWorker(
+        worker.id,
+        { skills: parseSkills(skills), availability: windows, ...(wage ? { desired_hourly_wage: Number(wage) } : {}) },
+        pin,
+      );
       await onChanged();
       setSaved(true);
     } catch (e) {
@@ -123,11 +143,26 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
     }
   };
 
+  const toggleStatus = async () => {
+    if (!worker) return;
+    const pin = await askPin(PIN_PROMPT);
+    if (!pin) return;
+    setError(null);
+    try {
+      await api.updateWorker(worker.id, { status: worker.status === "active" ? "inactive" : "active" }, pin);
+      await onChanged();
+    } catch (e) {
+      setError(describeError(e));
+    }
+  };
+
   const respond = async (id: string, accept: boolean) => {
+    const pin = await askPin(PIN_PROMPT);
+    if (!pin) return;
     setBusy(true);
     setError(null);
     try {
-      await (accept ? api.accept(id) : api.decline(id));
+      await (accept ? api.accept(id, pin) : api.decline(id, pin));
       await onChanged();
       await loadAssignments();
     } catch (e) {
@@ -149,9 +184,13 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
       <input maxLength={200} value={newExp} onChange={(e) => setNewExp(e.target.value)} />
       <label>자기소개 (선택)</label>
       <textarea maxLength={500} value={newIntro} onChange={(e) => setNewIntro(e.target.value)} />
+      <label>희망 시급 (원, 비우면 협의)</label>
+      <input type="number" min={1} max={500000} step={100} value={newWage} onChange={(e) => setNewWage(e.target.value)} />
+      <label>비밀번호 4자리 (스케줄 수정·활성/비활성·지원·수락 때 본인 확인에 사용합니다)</label>
+      <input type="password" inputMode="numeric" maxLength={4} placeholder="숫자 4자리" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} />
       <div className="notice">연락처·주소·주민번호 등 개인정보는 입력하지 마세요. 전화번호·이메일 형식은 저장되지 않습니다.</div>
       <div className="row">
-        <button className="primary" disabled={busy || !newName.trim()} onClick={() => void createProfile()}>프로필 만들기</button>
+        <button className="primary" disabled={busy || !newName.trim() || newPin.length !== 4} onClick={() => void createProfile()}>프로필 만들기</button>
         <button onClick={() => setCreating(false)}>닫기</button>
       </div>
       <p className="muted">만든 뒤 아래에서 작업 유형과 가능 시간을 등록하면 공개 모집 작업에 지원할 수 있습니다.</p>
@@ -170,6 +209,13 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
           ))}
         </select>
         <button onClick={() => setCreating((v) => !v)}>＋ 새 프로필 만들기</button>
+        <button onClick={() => void toggleStatus()}>
+          {worker.status === "active" ? "비활성화" : "활성화"}
+        </button>
+      </div>
+      <div className="muted">
+        현재 상태: {worker.status === "active" ? "활동 중" : "비활성 (배치·지원 대상에서 빠집니다)"} · 희망 시급:{" "}
+        {worker.desired_hourly_wage ? `${worker.desired_hourly_wage.toLocaleString()}원` : "협의"}
       </div>
       {creating && profileForm}
       {error && <div className="error">{error}</div>}
@@ -185,7 +231,7 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
               <span className="badge">남은 자리 {o.free_slots}명</span>
             </div>
             <div className="muted">
-              {fmt(o.task.start_at)} ~ {fmt(o.task.end_at)} · 조건: {o.task.required_skills.join(", ") || "없음"}
+              {fmt(o.task.start_at)} ~ {fmt(o.task.end_at)} · 시급 {o.task.hourly_wage ? `${o.task.hourly_wage.toLocaleString()}원` : "협의"} · 조건: {o.task.required_skills.join(", ") || "없음"}
             </div>
             <ul>
               {o.evaluation.reasons.map((r) => <li key={r} className="ok">✔ {r}</li>)}
@@ -194,10 +240,21 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
             </ul>
             {status ? (
               <span className="badge">{ASSIGNMENT_STATUS_LABEL[status]}</span>
-            ) : (
-              <button className="primary" disabled={busy || !o.evaluation.eligible} onClick={() => void applyTo(o.task.id)}>
+            ) : o.evaluation.eligible ? (
+              <button className="primary" disabled={busy} onClick={() => void applyTo(o.task.id, false)}>
                 지원하기
               </button>
+            ) : o.evaluation.requestable ? (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("조건이 맞지 않지만 지원합니다. 농장주가 협의 후 선택할 수 있습니다. 계속할까요?")) void applyTo(o.task.id, true);
+                }}
+              >
+                조건이 달라도 지원하기
+              </button>
+            ) : (
+              <span className="muted">지원할 수 없습니다 (비활성·거절 이력·확정 일정 겹침 등)</span>
             )}
           </div>
         );
@@ -234,6 +291,10 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
               </div>
             )}
             {a.status === "accepted" && <div className="muted">수락했습니다. 농장주가 확정하면 확정으로 바뀝니다.</div>}
+            {a.override_reasons.length > 0 && (
+              <ul>{a.override_reasons.map((r) => <li key={r} className="warn">⚠ 조건 불일치: {r}</li>)}</ul>
+            )}
+            <Chat assignmentId={a.id} me="worker" closed={a.status === "declined"} />
           </div>
         );
       })}
@@ -242,6 +303,8 @@ export function WorkerPortalPage({ demo, onChanged }: Props) {
       <div className="card">
         <label>할 수 있는 작업 유형 (쉼표로 구분)</label>
         <input value={skills} onChange={(e) => setSkills(e.target.value)} />
+        <label>희망 시급 (원, 비우면 협의)</label>
+        <input type="number" min={1} max={500000} step={100} value={wage} onChange={(e) => setWage(e.target.value)} />
         <label>가능한 날짜·시간</label>
         <ul>
           {windows.map((w, i) => (

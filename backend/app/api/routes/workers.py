@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, status
 
 from app.api.deps import get_repository
 from app.models.domain import Worker, WorkerOrigin
@@ -6,8 +8,11 @@ from app.repositories.memory import InMemoryRepository
 from app.schemas.requests import WorkerCreate, WorkerUpdate
 from app.schemas.responses import OpportunityView
 from app.services import workers as worker_service
+from app.services.auth import require_pin
 
 router = APIRouter(prefix="/workers", tags=["workers"])
+
+PinHeader = Annotated[str | None, Header(alias="X-Pin")]
 
 
 @router.get("", response_model=list[Worker])
@@ -34,6 +39,11 @@ def opportunities(
 
 @router.patch("/{worker_id}", response_model=Worker)
 def update_worker(
-    worker_id: str, payload: WorkerUpdate, repo: InMemoryRepository = Depends(get_repository)
+    worker_id: str,
+    payload: WorkerUpdate,
+    x_pin: PinHeader = None,
+    repo: InMemoryRepository = Depends(get_repository),
 ) -> Worker:
+    repo.get_worker(worker_id)
+    require_pin(repo, "worker", worker_id, x_pin)
     return worker_service.update_worker(repo, worker_id, payload)

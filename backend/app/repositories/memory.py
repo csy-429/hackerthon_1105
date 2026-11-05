@@ -1,8 +1,17 @@
 import threading
+from dataclasses import dataclass
 from uuid import uuid4
 
 from app.errors import NotFoundError
-from app.models.domain import Assignment, Farm, Task, Worker
+from app.models.domain import Assignment, Farm, Message, Task, Worker
+
+
+@dataclass
+class PinRecord:
+    salt: bytes
+    digest: bytes
+    failures: int = 0
+    locked_until: float = 0.0
 
 
 class InMemoryRepository:
@@ -14,6 +23,9 @@ class InMemoryRepository:
         self.workers: dict[str, Worker] = {}
         self.tasks: dict[str, Task] = {}
         self.assignments: dict[str, Assignment] = {}
+        self.messages: dict[str, Message] = {}
+        # 비밀번호 해시는 응답 모델과 섞이지 않도록 도메인 객체 밖에 둔다.
+        self.pins: dict[str, PinRecord] = {}
 
     def reset(self) -> None:
         with self.lock:
@@ -21,6 +33,8 @@ class InMemoryRepository:
             self.workers.clear()
             self.tasks.clear()
             self.assignments.clear()
+            self.messages.clear()
+            self.pins.clear()
 
     @staticmethod
     def new_id(prefix: str) -> str:
