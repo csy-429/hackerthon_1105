@@ -85,14 +85,6 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
           <div className="row">
             <strong className="grow">{a.worker_name}</strong>
             <span className="badge">{ASSIGNMENT_STATUS_LABEL[a.status]}</span>
-            {task.status === "proposed" && (a.status === "proposed" || a.status === "accepted") && (
-              <>
-                {a.status === "proposed" && (
-                  <button disabled={busy} onClick={() => void run(() => api.accept(a.id))}>수락(데모: 일손 대신)</button>
-                )}
-                <button disabled={busy} onClick={() => void run(() => api.decline(a.id))}>거절(데모)</button>
-              </>
-            )}
           </div>
           <ul>{a.match_reasons.map((r) => <li key={r} className="ok">{r}</li>)}</ul>
         </div>
@@ -112,7 +104,7 @@ export function TaskDetailPage({ task, onChanged, onBack }: Props) {
             배치 확정
           </button>
           {task.accepted_count !== task.required_workers && (
-            <span className="muted"> 필요 인원 {task.required_workers}명 모두 수락해야 확정할 수 있습니다 (현재 {task.accepted_count}명).</span>
+            <span className="muted"> 필요 인원 {task.required_workers}명 모두 수락해야 확정할 수 있습니다 (현재 {task.accepted_count}명). 일손은 '일손 화면' 탭에서 수락합니다.</span>
           )}
         </div>
       )}

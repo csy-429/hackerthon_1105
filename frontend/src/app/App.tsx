@@ -4,8 +4,9 @@ import type { Demo } from "../types";
 import { TaskDetailPage } from "../pages/TaskDetailPage";
 import { TasksPage } from "../pages/TasksPage";
 import { WorkersPage } from "../pages/WorkersPage";
+import { WorkerPortalPage } from "../pages/WorkerPortalPage";
 
-type Tab = "tasks" | "workers";
+type Tab = "tasks" | "workers" | "portal";
 
 export function App() {
   const [demo, setDemo] = useState<Demo | null>(null);
@@ -46,6 +47,9 @@ export function App() {
           <button className={tab === "workers" ? "active" : ""} onClick={() => setTab("workers")}>
             일손
           </button>
+          <button className={tab === "portal" ? "active" : ""} onClick={() => setTab("portal")}>
+            일손 화면
+          </button>
         </nav>
         <span className="grow" />
         <button disabled={loading} onClick={() => void load(true)}>
@@ -67,6 +71,7 @@ export function App() {
           <TaskDetailPage task={task} demo={demo} onChanged={refresh} onBack={() => setSelected(null)} />
         )}
         {demo && tab === "workers" && <WorkersPage workers={demo.workers} onChanged={refresh} />}
+        {demo && tab === "portal" && <WorkerPortalPage demo={demo} onChanged={refresh} />}
       </main>
     </>
   );

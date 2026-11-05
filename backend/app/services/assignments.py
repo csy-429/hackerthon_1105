@@ -19,10 +19,17 @@ def _view(repo: InMemoryRepository, assignment: Assignment) -> AssignmentView:
     )
 
 
-def list_assignments(repo: InMemoryRepository, task_id: str | None) -> list[AssignmentView]:
+def list_assignments(
+    repo: InMemoryRepository, task_id: str | None, worker_id: str | None = None
+) -> list[AssignmentView]:
     with repo.lock:
         items = sorted(repo.assignments.values(), key=lambda a: a.created_at)
-        return [_view(repo, a) for a in items if task_id is None or a.task_id == task_id]
+        return [
+            _view(repo, a)
+            for a in items
+            if (task_id is None or a.task_id == task_id)
+            and (worker_id is None or a.worker_id == worker_id)
+        ]
 
 
 def request_confirmation(

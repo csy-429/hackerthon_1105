@@ -50,6 +50,8 @@ export const api = {
     request<Task>("POST", `/tasks/${id}/request-confirmation`, { worker_ids: workerIds }),
   confirm: (id: string, approved: boolean) =>
     request<Task>("POST", `/tasks/${id}/confirm`, { farmer_approved: approved }),
+  workerAssignments: (workerId: string) =>
+    request<AssignmentView[]>("GET", `/assignments?worker_id=${encodeURIComponent(workerId)}`),
   accept: (id: string) => request<AssignmentView>("POST", `/assignments/${id}/accept`),
   decline: (id: string) => request<AssignmentView>("POST", `/assignments/${id}/decline`),
   createWorker: (w: Pick<Worker, "display_name" | "skills" | "availability">) =>

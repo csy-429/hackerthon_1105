@@ -10,9 +10,11 @@ router = APIRouter(prefix="/assignments", tags=["assignments"])
 
 @router.get("", response_model=list[AssignmentView])
 def list_assignments(
-    task_id: str | None = None, repo: InMemoryRepository = Depends(get_repository)
+    task_id: str | None = None,
+    worker_id: str | None = None,
+    repo: InMemoryRepository = Depends(get_repository),
 ) -> list[AssignmentView]:
-    return assignment_service.list_assignments(repo, task_id)
+    return assignment_service.list_assignments(repo, task_id, worker_id)
 
 
 @router.post("/{assignment_id}/accept", response_model=AssignmentView)

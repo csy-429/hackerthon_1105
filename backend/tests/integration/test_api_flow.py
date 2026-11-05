@@ -92,6 +92,17 @@ def test_confirm_after_accept(client):
     assert done.json()["status"] == "confirmed"
 
 
+def test_worker_sees_own_assignments_and_edits_schedule(client):
+    client.post("/api/tasks/task_sorting/request-confirmation",
+                json={"worker_ids": ["worker_narae"]})
+    mine = client.get("/api/assignments", params={"worker_id": "worker_narae"}).json()
+    assert len(mine) == 1 and mine[0]["task_id"] == "task_sorting"
+    assert client.get("/api/assignments", params={"worker_id": "worker_raon"}).json() == []
+    r = client.patch("/api/workers/worker_raon", json={
+        "availability": [{"start": "2030-01-01T08:00:00", "end": "2030-01-01T18:00:00"}]})
+    assert r.status_code == 200 and len(r.json()["availability"]) == 1
+
+
 def test_agent_unavailable_is_not_faked(client):
     r = client.post("/api/agent/plan", json={"task_id": "task_sorting", "request": "설명"})
     assert r.status_code == 503
